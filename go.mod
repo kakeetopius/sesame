@@ -1,4 +1,4 @@
-module github.com/prashantgupta24/firewalld-rest
+module github.com/kakeetopius/sesame
 
 go 1.23.0
 

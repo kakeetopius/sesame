@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/gorilla/mux"
-	"github.com/prashantgupta24/firewalld-rest/firewall"
+	"github.com/kakeetopius/sesame/firewall"
 )
 
 type Server struct {

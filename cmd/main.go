@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/prashantgupta24/firewalld-rest/server"
+	"github.com/kakeetopius/sesame/server"
 )
 
 func main() {

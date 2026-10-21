@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/prashantgupta24/firewalld-rest/ip"
+	"github.com/kakeetopius/sesame/ip"
 )
 
 var (

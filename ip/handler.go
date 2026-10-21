@@ -5,20 +5,20 @@ import (
 	"log"
 	"sync"
 
-	"github.com/prashantgupta24/firewalld-rest/db"
+	"github.com/kakeetopius/sesame/db"
 )
 
 var once sync.Once
 
-//singleton reference
+// singleton reference
 var handlerInstance *handlerStruct
 
-//handlerStruct for managing IP related tasks
+// handlerStruct for managing IP related tasks
 type handlerStruct struct {
 	db db.Instance
 }
 
-//GetHandler gets singleton handler for IP management
+// GetHandler gets singleton handler for IP management
 func GetHandler() Handler {
 	once.Do(func() {
 		dbInstance := db.GetFileTypeInstance()
@@ -30,7 +30,7 @@ func GetHandler() Handler {
 			log.Fatal(err)
 		}
 		if len(ipStore) == 0 {
-			//in case you want to store some IPs before hand
+			// in case you want to store some IPs before hand
 			// ipStore["1.2.3.4"] = &Instance{
 			// 	IP:     "1.2.3.4",
 			// 	Domain: "first.com",
@@ -48,7 +48,7 @@ func GetHandler() Handler {
 	return handlerInstance
 }
 
-//GetIP from the db
+// GetIP from the db
 func (handler *handlerStruct) GetIP(ipAddr string) (*Instance, error) {
 	ipStore, err := handler.loadIPStore()
 	if err != nil {
@@ -61,7 +61,7 @@ func (handler *handlerStruct) GetIP(ipAddr string) (*Instance, error) {
 	return ip, nil
 }
 
-//GetAllIPs from the db
+// GetAllIPs from the db
 func (handler *handlerStruct) GetAllIPs() ([]*Instance, error) {
 	ips := []*Instance{}
 	ipStore, err := handler.loadIPStore()
@@ -74,7 +74,7 @@ func (handler *handlerStruct) GetAllIPs() ([]*Instance, error) {
 	return ips, nil
 }
 
-//CheckIPExists checks if IP is in db
+// CheckIPExists checks if IP is in db
 func (handler *handlerStruct) CheckIPExists(ipAddr string) (bool, error) {
 	ipStore, err := handler.loadIPStore()
 	if err != nil {
@@ -87,7 +87,7 @@ func (handler *handlerStruct) CheckIPExists(ipAddr string) (bool, error) {
 	return false, nil
 }
 
-//AddIP to the db
+// AddIP to the db
 func (handler *handlerStruct) AddIP(ip *Instance) error {
 	ipStore, err := handler.loadIPStore()
 	if err != nil {
@@ -104,7 +104,7 @@ func (handler *handlerStruct) AddIP(ip *Instance) error {
 	return nil
 }
 
-//DeleteIP from the db
+// DeleteIP from the db
 func (handler *handlerStruct) DeleteIP(ipAddr string) (*Instance, error) {
 	ipStore, err := handler.loadIPStore()
 	if err != nil {
@@ -122,7 +122,7 @@ func (handler *handlerStruct) DeleteIP(ipAddr string) (*Instance, error) {
 }
 
 func (handler *handlerStruct) loadIPStore() (map[string]*Instance, error) {
-	var ipStore = make(map[string]*Instance)
+	ipStore := make(map[string]*Instance)
 	if err := handler.db.Load(&ipStore); err != nil {
 		return nil, fmt.Errorf("error while loading from file : %v", err)
 	}

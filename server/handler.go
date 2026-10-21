@@ -10,8 +10,8 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
-	"github.com/prashantgupta24/firewalld-rest/firewall"
-	"github.com/prashantgupta24/firewalld-rest/ip"
+	"github.com/kakeetopius/sesame/firewall"
+	"github.com/kakeetopius/sesame/ip"
 )
 
 // Index page
