@@ -1,4 +1,4 @@
-package route
+package server
 
 import (
 	"encoding/json"
@@ -10,11 +10,11 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
-	"github.com/prashantgupta24/firewalld-rest/firewallcmd"
+	"github.com/prashantgupta24/firewalld-rest/firewall"
 	"github.com/prashantgupta24/firewalld-rest/ip"
 )
 
-//Index page
+// Index page
 // GET /
 func Index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Welcome!\n")
@@ -40,7 +40,7 @@ func IPAdd(w http.ResponseWriter, r *http.Request) {
 
 	env := os.Getenv("env")
 	if env != "local" {
-		command, err := firewallcmd.EnableRichRuleForIP(ipInstance.IP)
+		command, err := firewall.AddRuleForIP(ipInstance.IP)
 		if err != nil {
 			writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("cannot exec command %v, err : %v", command, err.Error()))
 			return
@@ -100,7 +100,7 @@ func IPDelete(w http.ResponseWriter, r *http.Request) {
 
 	env := os.Getenv("env")
 	if env != "local" {
-		command, err := firewallcmd.DisableRichRuleForIP(ipAddr)
+		command, err := firewall.RemoveRuleForIP(ipAddr)
 		if err != nil {
 			writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("cannot exec command %v, err : %v", command, err.Error()))
 			return
@@ -134,7 +134,7 @@ func writeErrorResponse(w http.ResponseWriter, errorCode int, errorMsg string) {
 		Encode(&JSONErrorResponse{Error: &APIError{Status: errorCode, Title: errorMsg}})
 }
 
-//Populates a ip from the params in the Handler
+// Populates a ip from the params in the Handler
 func populateModelFromHandler(w http.ResponseWriter, r *http.Request, ip interface{}) error {
 	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
 	if err != nil {

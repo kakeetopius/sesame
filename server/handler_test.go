@@ -1,4 +1,4 @@
-package route
+package server
 
 import (
 	"net/http"
@@ -11,12 +11,14 @@ import (
 	"github.com/prashantgupta24/firewalld-rest/ip"
 )
 
-var data1 string
-var data2 string
-var dataInvalid string
-var ipAddr1 string
-var ipAddr2 string
-var ipAddr3 string
+var (
+	data1       string
+	data2       string
+	dataInvalid string
+	ipAddr1     string
+	ipAddr2     string
+	ipAddr3     string
+)
 
 func setup() {
 	ipAddr1 = "10.20.30.40"
@@ -24,7 +26,7 @@ func setup() {
 	ipAddr3 = "10.50.100.150"
 	data1 = `{"ip":"` + ipAddr1 + `","domain":"test.com"}`
 	data2 = `{"ip":"` + ipAddr2 + `","domain":"test.com"}`
-	dataInvalid = `{"ip":"` + ipAddr2 //missing domain
+	dataInvalid = `{"ip":"` + ipAddr2 // missing domain
 }
 
 func shutdown() {
@@ -238,7 +240,7 @@ func TestShowAllIPsAfterAdding(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
 	}
-	//make sure both IPs exist
+	// make sure both IPs exist
 	if strings.Index(rr.Body.String(), ipAddr1) == -1 || strings.Index(rr.Body.String(), ipAddr2) == -1 {
 		t.Errorf("handler returned without required body: \ngot  %v want %v",
 			rr.Body.String(), ipAddr1)
@@ -328,7 +330,7 @@ func TestShowAllIPsAfter(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
 	}
-	//make sure ip doesn't exist
+	// make sure ip doesn't exist
 	if strings.Index(rr.Body.String(), ipAddr1) != -1 {
 		t.Errorf("handler contained deleted entry: \ngot  %vdeleted %v",
 			rr.Body.String(), ipAddr1)
@@ -336,7 +338,6 @@ func TestShowAllIPsAfter(t *testing.T) {
 }
 
 func TestPopulateModelFromHandler(t *testing.T) {
-
 	req, err := http.NewRequest("POST", "/ip", strings.NewReader("garbage"))
 	if err != nil {
 		t.Fatal(err)

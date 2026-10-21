@@ -1,4 +1,4 @@
-package route
+package server
 
 import (
 	"net/http"
@@ -15,9 +15,8 @@ type route struct {
 
 type routes []route
 
-//NewRouter creates a new mux router for application
-func NewRouter() *mux.Router {
-
+// newRouter creates a new mux router for application
+func newRouter() *mux.Router {
 	router := mux.NewRouter()
 	subrouter := router.PathPrefix("/m{[0-9]+}").Subrouter().StrictSlash(true)
 

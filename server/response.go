@@ -1,4 +1,4 @@
-package route
+package server
 
 // JSONResponse defines meta and interface struct
 type JSONResponse struct {

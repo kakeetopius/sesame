@@ -5,12 +5,16 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/prashantgupta24/firewalld-rest/route"
+	"github.com/prashantgupta24/firewalld-rest/server"
 )
 
 func main() {
 	fmt.Println("starting application")
 
-	router := route.NewRouter()
-	log.Fatal(http.ListenAndServe(":8080", router))
+	// TODO:
+	// load config
+	// init firewall
+
+	server := server.New(nil)
+	log.Fatal(http.ListenAndServe(":8080", server))
 }

@@ -1,4 +1,4 @@
-package route
+package server
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ type exception struct {
 	Message string `json:"message"`
 }
 
-//validateMiddleware validates the JWT
+// validateMiddleware validates the JWT
 func validateMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		authorizationHeader := req.Header.Get("authorization")
