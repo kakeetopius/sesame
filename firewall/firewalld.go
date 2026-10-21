@@ -1,16 +1,16 @@
-package firewallcmd
+package firewall
 
 import (
 	"fmt"
 	"os/exec"
 )
 
-//EnableRichRuleForIP enables rich rule for IP access + reloads
-//example:
-//firewall-cmd --permanent --zone=public --add-rich-rule='rule family="ipv4" source address="10.10.99.10/32" port protocol="tcp" port="22" accept'
-func EnableRichRuleForIP(ipAddr string) (string, error) {
+// AddRuleForIP enables rich rule for IP access + reloads
+// example:
+// firewall-cmd --permanent --zone=public --add-rich-rule='rule family="ipv4" source address="10.10.99.10/32" port protocol="tcp" port="22" accept'
+func AddRuleForIP(ipAddr string) (string, error) {
 	cmd1 := exec.Command(`firewall-cmd`, `--permanent`, "--zone=public", `--add-rich-rule=rule family="ipv4" source address="`+ipAddr+`/32" port protocol="tcp" port="22" accept`)
-	//uncomment for debugging
+	// uncomment for debugging
 	// for _, v := range cmd1.Args {
 	// 	fmt.Println(v)
 	// }
@@ -28,8 +28,8 @@ func EnableRichRuleForIP(ipAddr string) (string, error) {
 	return "", nil
 }
 
-//DisableRichRuleForIP disables rich rule for IP access + reloads
-func DisableRichRuleForIP(ipAddr string) (string, error) {
+// RemoveRuleForIP disables rich rule for IP access + reloads
+func RemoveRuleForIP(ipAddr string) (string, error) {
 	cmd1 := exec.Command(`firewall-cmd`, `--permanent`, "--zone=public", `--remove-rich-rule=rule family="ipv4" source address="`+ipAddr+`/32" port protocol="tcp" port="22" accept`)
 	output1, err1 := cmd1.CombinedOutput()
 	if err1 != nil {
@@ -45,7 +45,7 @@ func DisableRichRuleForIP(ipAddr string) (string, error) {
 	return "", nil
 }
 
-//reload reloads firewall for setting to take effect
+// reload reloads firewall for setting to take effect
 func reload() (*exec.Cmd, []byte, error) {
 	cmd := exec.Command("firewall-cmd", "--reload")
 	output, err := cmd.CombinedOutput()
