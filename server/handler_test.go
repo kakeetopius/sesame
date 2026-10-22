@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/kakeetopius/sesame/ip"
+	"github.com/kakeetopius/sesame/internal/ip"
 )
 
 var (
@@ -19,6 +19,8 @@ var (
 	ipAddr2     string
 	ipAddr3     string
 )
+
+var TestServer Server
 
 func setup() {
 	ipAddr1 = "10.20.30.40"
@@ -45,7 +47,7 @@ func TestIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rr := newRequestRecorder(req, Index)
+	rr := newRequestRecorder(req, TestServer.Index)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -65,7 +67,7 @@ func TestShowAllIPs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rr := newRequestRecorder(req, ShowAllIPs)
+	rr := newRequestRecorder(req, TestServer.ShowAllIPs)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -85,7 +87,7 @@ func TestAddBadIP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rr := newRequestRecorder(req, IPAdd)
+	rr := newRequestRecorder(req, TestServer.IPAdd)
 
 	if status := rr.Code; status != http.StatusUnprocessableEntity {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -107,7 +109,7 @@ func TestAddIPNonLocal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rr := newRequestRecorder(req, IPAdd)
+	rr := newRequestRecorder(req, TestServer.IPAdd)
 
 	if status := rr.Code; status != http.StatusInternalServerError {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -128,7 +130,7 @@ func TestAddIP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rr := newRequestRecorder(req, IPAdd)
+	rr := newRequestRecorder(req, TestServer.IPAdd)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -148,7 +150,7 @@ func TestAddIPDup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rr := newRequestRecorder(req, IPAdd)
+	rr := newRequestRecorder(req, TestServer.IPAdd)
 
 	if status := rr.Code; status != http.StatusBadRequest {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -170,7 +172,7 @@ func TestShowIP(t *testing.T) {
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/ip/{ip}", IPShow)
+	router.HandleFunc("/ip/{ip}", TestServer.IPShow)
 	router.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -193,7 +195,7 @@ func TestShowIPNotFound(t *testing.T) {
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/ip/{ip}", IPShow)
+	router.HandleFunc("/ip/{ip}", TestServer.IPShow)
 	router.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusNotFound {
@@ -214,7 +216,7 @@ func TestAddIP2(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rr := newRequestRecorder(req, IPAdd)
+	rr := newRequestRecorder(req, TestServer.IPAdd)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -234,7 +236,7 @@ func TestShowAllIPsAfterAdding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rr := newRequestRecorder(req, ShowAllIPs)
+	rr := newRequestRecorder(req, TestServer.ShowAllIPs)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -256,7 +258,7 @@ func TestDeleteIPNonLocal(t *testing.T) {
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/ip/{ip}", IPDelete)
+	router.HandleFunc("/ip/{ip}", TestServer.IPDelete)
 	router.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusInternalServerError {
@@ -280,7 +282,7 @@ func TestDeleteIP(t *testing.T) {
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/ip/{ip}", IPDelete)
+	router.HandleFunc("/ip/{ip}", TestServer.IPDelete)
 	router.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -303,7 +305,7 @@ func TestDeleteIPNotFound(t *testing.T) {
 	}
 	rr := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/ip/{ip}", IPDelete)
+	router.HandleFunc("/ip/{ip}", TestServer.IPDelete)
 	router.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusNotFound {
@@ -324,7 +326,7 @@ func TestShowAllIPsAfter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rr := newRequestRecorder(req, ShowAllIPs)
+	rr := newRequestRecorder(req, TestServer.ShowAllIPs)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -342,8 +344,8 @@ func TestPopulateModelFromHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ipInstance := &ip.Instance{}
-	if err := populateModelFromHandler(nil, req, ipInstance); err == nil {
+	ipInstance := &ip.IPAddress{}
+	if err := populateIPFromHandler(nil, req, ipInstance); err == nil {
 		t.Errorf("should have errored")
 	}
 
@@ -351,8 +353,8 @@ func TestPopulateModelFromHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ipInstance = &ip.Instance{}
-	if err := populateModelFromHandler(nil, req, ipInstance); err == nil {
+	ipInstance = &ip.IPAddress{}
+	if err := populateIPFromHandler(nil, req, ipInstance); err == nil {
 		t.Errorf("should have errored")
 	}
 
@@ -360,8 +362,8 @@ func TestPopulateModelFromHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ipInstance = &ip.Instance{}
-	if err := populateModelFromHandler(nil, req, ipInstance); err != nil {
+	ipInstance = &ip.IPAddress{}
+	if err := populateIPFromHandler(nil, req, ipInstance); err != nil {
 		t.Errorf("should not have errored : %v", err)
 	}
 }

@@ -4,31 +4,31 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/kakeetopius/sesame/firewall"
-	"github.com/kakeetopius/sesame/ip"
+	"github.com/kakeetopius/sesame/internal/ip"
 )
 
 // Index page
 // GET /
-func Index(w http.ResponseWriter, r *http.Request) {
+func (s *Server) Index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Welcome!\n")
 }
 
 // IPAdd for the Create action
 // POST /ip
-func IPAdd(w http.ResponseWriter, r *http.Request) {
-	ipInstance := &ip.Instance{}
-	if err := populateModelFromHandler(w, r, ipInstance); err != nil {
+func (s *Server) IPAdd(w http.ResponseWriter, r *http.Request) {
+	ipInstance := &ip.IPAddress{}
+	if err := populateIPFromHandler(w, r, ipInstance); err != nil {
 		writeErrorResponse(w, http.StatusUnprocessableEntity, "Unprocessible Entity")
 		return
 	}
-	ipExists, err := ip.GetHandler().CheckIPExists(ipInstance.IP)
+
+	ipExists, err := s.DB.CheckIPExists(ipInstance.IP)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
@@ -47,7 +47,7 @@ func IPAdd(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = ip.GetHandler().AddIP(ipInstance)
+	err = s.DB.AddIP(ipInstance)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
@@ -58,10 +58,10 @@ func IPAdd(w http.ResponseWriter, r *http.Request) {
 
 // IPShow for the ip Show action
 // GET /ip/{ip}
-func IPShow(w http.ResponseWriter, r *http.Request) {
+func (s *Server) IPShow(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	ipAddr := vars["ip"]
-	ip, err := ip.GetHandler().GetIP(ipAddr)
+	ip, err := s.DB.GetIP(ipAddr)
 	if err != nil {
 		// No IP found
 		writeErrorResponse(w, http.StatusNotFound, err.Error())
@@ -72,8 +72,8 @@ func IPShow(w http.ResponseWriter, r *http.Request) {
 
 // ShowAllIPs shows all IPs
 // GET /ip
-func ShowAllIPs(w http.ResponseWriter, r *http.Request) {
-	ips, err := ip.GetHandler().GetAllIPs()
+func (s *Server) ShowAllIPs(w http.ResponseWriter, r *http.Request) {
+	ips, err := s.DB.GetAllIPs()
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
@@ -83,12 +83,12 @@ func ShowAllIPs(w http.ResponseWriter, r *http.Request) {
 
 // IPDelete for the ip Delete action
 // DELETE /ip/{ip}
-func IPDelete(w http.ResponseWriter, r *http.Request) {
+func (s *Server) IPDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	ipAddr := vars["ip"]
 	log.Printf("IP to delete %s\n", ipAddr)
 
-	ipExists, err := ip.GetHandler().CheckIPExists(ipAddr)
+	ipExists, err := s.DB.CheckIPExists(ipAddr)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
@@ -107,7 +107,7 @@ func IPDelete(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ip, err := ip.GetHandler().DeleteIP(ipAddr)
+	ip, err := s.DB.DeleteIP(ipAddr)
 	if err != nil {
 		// IP could not be deleted
 		writeErrorResponse(w, http.StatusNotFound, err.Error())
@@ -135,8 +135,8 @@ func writeErrorResponse(w http.ResponseWriter, errorCode int, errorMsg string) {
 }
 
 // Populates a ip from the params in the Handler
-func populateModelFromHandler(w http.ResponseWriter, r *http.Request, ip interface{}) error {
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
+func populateIPFromHandler(w http.ResponseWriter, r *http.Request, ip interface{}) error {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1048576))
 	if err != nil {
 		return err
 	}

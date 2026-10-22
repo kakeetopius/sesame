@@ -15,12 +15,44 @@ type route struct {
 
 type routes []route
 
-// newRouter creates a new mux router for application
-func newRouter() *mux.Router {
-	router := mux.NewRouter()
-	subrouter := router.PathPrefix("/m{[0-9]+}").Subrouter().StrictSlash(true)
+func (s *Server) addRoutes() {
+	routesForApp := routes{
+		route{
+			"Index Page",
+			"GET",
+			"/",
+			s.Index,
+		},
+		route{
+			"Add New IP",
+			"POST",
+			"/ip",
+			s.IPAdd,
+		},
+		route{
+			"Show all IPs present",
+			"GET",
+			"/ip",
+			s.ShowAllIPs,
+		},
+		route{
+			"Show if particular IP is present",
+			"GET",
+			"/ip/{ip}",
+			s.IPShow,
+		},
+		route{
+			"Delete IP",
+			"DELETE",
+			"/ip/{ip}",
+			s.IPDelete,
+		},
+	}
 
+	router := mux.NewRouter()
+	subrouter := s.Router.PathPrefix("/m{[0-9]+}").Subrouter().StrictSlash(true)
 	subrouter.Use(loggingMiddleware, validateMiddleware)
+
 	for _, route := range routesForApp {
 		subrouter.
 			Methods(route.Method).
@@ -29,38 +61,5 @@ func newRouter() *mux.Router {
 			Handler(route.HandlerFunc)
 	}
 
-	return subrouter
-}
-
-var routesForApp = routes{
-	route{
-		"Index Page",
-		"GET",
-		"/",
-		Index,
-	},
-	route{
-		"Add New IP",
-		"POST",
-		"/ip",
-		IPAdd,
-	},
-	route{
-		"Show all IPs present",
-		"GET",
-		"/ip",
-		ShowAllIPs,
-	},
-	route{
-		"Show if particular IP is present",
-		"GET",
-		"/ip/{ip}",
-		IPShow,
-	},
-	route{
-		"Delete IP",
-		"DELETE",
-		"/ip/{ip}",
-		IPDelete,
-	},
+	s.Router = router
 }
