@@ -5,9 +5,9 @@ import (
 )
 
 type Firewall interface {
-	AddRuleForIP(string) (string, error)
-	DeleteRuleForIP(string) (string, error)
-	Check() error
+	Name() string
+	AddRuleForIP(string) error
+	DeleteRuleForIP(string) error
 }
 
 type ErrFirewallNotActive struct {
