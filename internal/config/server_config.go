@@ -1,4 +1,4 @@
-// Package config handles the apps configuration.
+// Package config handles the app's configuration.
 package config
 
 import (
@@ -8,22 +8,22 @@ import (
 )
 
 type ServerConfig struct {
-	Addr            string
-	Port            int
-	CertFile        string
-	KeyFile         string
-	ClientCertsFile string
-	Firewalld       FirewalldConfig
-	Ufw             UfwConfig
+	Addr           string          `mapstructure:"address"`
+	Port           int             `mapstructure:"port"`
+	CertFile       string          `mapstructure:"cert_file"`
+	KeyFile        string          `mapstructure:"key_file"`
+	ClientCertsDir string          `mapstructure:"client_certs_dir"`
+	Firewalld      FirewalldConfig `mapstructure:"firewalld"`
+	Ufw            UfwConfig       `mapstructure:"ufw"`
 }
 
 type FirewalldConfig struct {
-	Enabled bool
-	Zone    string
+	Enabled bool   `mapstructure:"enabled"`
+	Zone    string `mapstructure:"zone"`
 }
 
 type UfwConfig struct {
-	Enabled bool
+	Enabled bool `mapstructure:"enabled"`
 }
 
 type ConfigSetupFunc func(*viper.Viper)
@@ -37,15 +37,15 @@ func LoadServerConfig(path string, setUpFuncs ...ConfigSetupFunc) (ServerConfig,
 // func setDefaults()
 
 // initConfig reads in config file and ENV variables if set.
-func initConfig(cfgFile string) (*viper.Viper, error) {
+func initConfig(cfgFile string, defaultName string, defaultPath string) (*viper.Viper, error) {
 	appConfig := viper.New()
 
 	if cfgFile != "" {
 		// Use config file from the flag.
 		appConfig.SetConfigFile(cfgFile)
 	} else {
-		appConfig.SetConfigName("firewalld-rest")
-		appConfig.AddConfigPath("/etc/firewalld-rest")
+		appConfig.SetConfigName(defaultName)
+		appConfig.AddConfigPath(defaultPath)
 	}
 
 	appConfig.AutomaticEnv() // read in environment variables that match
