@@ -1,6 +1,25 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"bytes"
+	"crypto/ed25519"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/hex"
+	"encoding/json"
+	"encoding/pem"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+
+	"github.com/kakeetopius/sesame/internal/config"
+	"github.com/kakeetopius/sesame/internal/ip"
+	"github.com/kakeetopius/sesame/server"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/yaronf/httpsign"
+)
 
 func ClientCommand() *cobra.Command {
 	clientCmd := &cobra.Command{
@@ -9,6 +28,210 @@ func ClientCommand() *cobra.Command {
 		SilenceUsage: true,
 	}
 
-	clientCmd.Flags().String("config", "", "Path to the config file.")
+	clientCmd.PersistentFlags().String("config", "", "Path to the client config file.")
+	clientCmd.PersistentFlags().StringP("addr", "a", "", "The address to connect to.")
+	clientCmd.PersistentFlags().IntP("port", "p", 0, "The port to connect to.")
+	clientCmd.PersistentFlags().String("cert-file", "", "Path to the client certificate.")
+	clientCmd.PersistentFlags().String("key-file", "", "Path to the client private key file.")
+
+	clientCmd.AddCommand(
+		ClientAllowCommand(),
+		ClientDenyCommand(),
+	)
+
 	return clientCmd
+}
+
+func ClientAllowCommand() *cobra.Command {
+	allowCmd := &cobra.Command{
+		Use:          "allow ip",
+		Short:        "Allow SSH access on the server for an ip",
+		SilenceUsage: true,
+		Args:         cobra.ExactArgs(1),
+		RunE:         runClientAllow,
+	}
+
+	return allowCmd
+}
+
+func ClientDenyCommand() *cobra.Command {
+	denyCmd := &cobra.Command{
+		Use:          "deny ip",
+		Short:        "Deny SSH access on the server for an ip",
+		SilenceUsage: true,
+		Args:         cobra.ExactArgs(1),
+		RunE:         runClientDeny,
+	}
+
+	return denyCmd
+}
+
+func clientConfigSetupFunc(cmd *cobra.Command) config.ConfigSetupFunc {
+	return func(v *viper.Viper) {
+		err := v.BindPFlag("address", cmd.Flags().Lookup("addr"))
+		cobra.CheckErr(err)
+		err = v.BindPFlag("port", cmd.Flags().Lookup("port"))
+		cobra.CheckErr(err)
+		err = v.BindPFlag("cert_file", cmd.Flags().Lookup("cert-file"))
+		cobra.CheckErr(err)
+		err = v.BindPFlag("private_key_file", cmd.Flags().Lookup("key-file"))
+		cobra.CheckErr(err)
+	}
+}
+
+func runClientAllow(cmd *cobra.Command, args []string) error {
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return err
+	}
+
+	clientConfig, err := config.LoadClientConfig(configPath, clientConfigSetupFunc(cmd))
+	if err != nil {
+		return err
+	}
+
+	key, keyID, err := loadClientPubKey(&clientConfig)
+	if err != nil {
+		return err
+	}
+
+	signer, err := httpsign.NewEd25519Signer(key, httpsign.NewSignConfig().SetKeyID(keyID), *server.MustBeSignedFields("POST"))
+	if err != nil {
+		return err
+	}
+
+	client := httpsign.NewDefaultClient(
+		httpsign.NewClientConfig().SetSignatureName(server.SignatureName()).SetSigner(signer),
+	)
+
+	ip := ip.IPAddress{
+		IP: args[0],
+	}
+	err = ip.Verify()
+	if err != nil {
+		return err
+	}
+
+	body, err := json.Marshal(ip)
+	if err != nil {
+		return fmt.Errorf("json error: ", err)
+	}
+
+	request, err := http.NewRequest("POST", getServerURL(clientConfig, "/m1/ip"), bytes.NewBuffer(body))
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	io.Copy(os.Stdout, resp.Body)
+
+	return nil
+}
+
+func runClientDeny(cmd *cobra.Command, args []string) error {
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return err
+	}
+
+	clientConfig, err := config.LoadClientConfig(configPath, clientConfigSetupFunc(cmd))
+	if err != nil {
+		return err
+	}
+
+	key, keyID, err := loadClientPubKey(&clientConfig)
+	if err != nil {
+		return err
+	}
+
+	signer, err := httpsign.NewEd25519Signer(key, httpsign.NewSignConfig().SetKeyID(keyID), *server.MustBeSignedFields("DELETE"))
+	if err != nil {
+		return err
+	}
+
+	client := httpsign.NewDefaultClient(
+		httpsign.NewClientConfig().SetSignatureName(server.SignatureName()).SetSigner(signer),
+	)
+
+	ip := ip.IPAddress{
+		IP: args[0],
+	}
+	err = ip.Verify()
+	if err != nil {
+		return err
+	}
+
+	request, err := http.NewRequest("DELETE", getServerURL(clientConfig, "/m1/ip/"+ip.IP), nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	io.Copy(os.Stdout, resp.Body)
+
+	return nil
+}
+
+func getServerURL(config config.ClientConfig, path string) string {
+	if config.Port != 0 {
+		return fmt.Sprintf("http://%v:%v%v", config.Address, config.Port, path)
+	}
+
+	return fmt.Sprintf("http://%v%v", config.Address, path)
+}
+
+func loadClientPubKey(config *config.ClientConfig) (ed25519.PrivateKey, string, error) {
+	privKey, err := os.ReadFile(config.PrivKeyFile)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read client private key file: %w", err)
+	}
+
+	block, _ := pem.Decode(privKey)
+	if block == nil {
+		return nil, "", fmt.Errorf("private key: %v. No pem block found", config.PrivKeyFile)
+	}
+
+	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse client private key: %w", err)
+	}
+
+	ed25519Key, ok := key.(ed25519.PrivateKey)
+	if !ok {
+		fmt.Errorf("private key %v. Only ed25519 private keys allowed.", config.PrivKeyFile)
+	}
+
+	certFile, err := os.ReadFile(config.CertFile)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read client certificate: %w", err)
+	}
+
+	block, _ = pem.Decode(certFile)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, "", fmt.Errorf("%v: no CERTIFICATE block found", config.CertFile)
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse client certificate: %w", err)
+	}
+
+	pubKey, ok := cert.PublicKey.(ed25519.PublicKey)
+	if !ok {
+		return nil, "", fmt.Errorf("certificate %v. Only certificates with an ed25519 public keys are allowed", config.CertFile)
+	}
+
+	pubKeyHash := sha256.Sum256(pubKey)
+
+	return ed25519Key, hex.EncodeToString(pubKeyHash[:]), nil
 }

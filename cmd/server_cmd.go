@@ -1,7 +1,15 @@
 package cmd
 
 import (
+	"crypto/ed25519"
+	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/hex"
+	"encoding/pem"
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/kakeetopius/sesame/firewall"
 	"github.com/kakeetopius/sesame/internal/config"
@@ -19,7 +27,7 @@ func ServerCommand() *cobra.Command {
 		RunE:         runServer,
 	}
 
-	serverCmd.Flags().String("config", "", "Path to the config file.")
+	serverCmd.Flags().String("config", "", "Path to the server config file.")
 	serverCmd.Flags().StringP("addr", "a", "", "The address to use.")
 	serverCmd.Flags().IntP("port", "p", 0, "The port to listen on.")
 	serverCmd.Flags().Int("ssh-port", 22, "The port on which the ssh daemon is listening on.")
@@ -58,24 +66,23 @@ func runServer(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	key, cert, err := loadSeverKeyAndCert(&config)
+	clientCerts, err := loadAuthorizedCerts(&config)
 	if err != nil {
 		return err
 	}
 
-	clientCerts, err := loadClientCerts(&config)
-	if err != nil {
-		return err
+	serverOpts := server.Options{
+		Addr:              config.Addr,
+		Port:              config.Port,
+		KeyFile:           config.KeyFile,
+		CertFile:          config.CertFile,
+		Firewall:          firewall,
+		DB:                db,
+		AuthorizedClients: clientCerts,
+		Insecure:          config.Insecure,
 	}
 
-	server := server.New(server.Options{
-		Firewall:    firewall,
-		DB:          db,
-		Key:         key,
-		Cert:        cert,
-		ClientCerts: clientCerts,
-		Insecure:    config.Insecure,
-	})
+	server := server.New(serverOpts)
 
 	return server.Run()
 }
@@ -100,14 +107,56 @@ func loadFirewall(config *config.ServerConfig) (firewall.Firewall, error) {
 }
 
 func loadDB(config *config.ServerConfig) (db.Instance, error) {
-	db := db.GetFileTypeInstance(config.DBFile)
-	return db, nil
+	return db.GetFileTypeInstance(config.DBFile)
 }
 
-func loadSeverKeyAndCert(config *config.ServerConfig) (string, string, error) {
-	return "", "", nil
+func loadSeverCertificate(config *config.ServerConfig) (tls.Certificate, error) {
+	return tls.LoadX509KeyPair(config.CertFile, config.KeyFile)
 }
 
-func loadClientCerts(config *config.ServerConfig) ([]string, error) {
-	return nil, nil
+func loadAuthorizedCerts(config *config.ServerConfig) (server.ClientKeys, error) {
+	certPool := make(server.ClientKeys)
+
+	authorizedDir, err := os.ReadDir(config.AuthorizedCertsDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read authorized certificates directory: %w", err)
+	}
+
+	if len(authorizedDir) == 0 {
+		log.Println("no authorized certificates found in ", config.AuthorizedCertsDir)
+		return certPool, nil
+	}
+
+	for _, file := range authorizedDir {
+		if file.IsDir() {
+			continue
+		}
+		certFile, err := os.ReadFile(file.Name())
+		if err != nil {
+			return nil, fmt.Errorf("failed to read certificate file %v: %w", file.Name(), err)
+		}
+
+		block, _ := pem.Decode(certFile)
+		if block == nil || block.Type != "CERTIFICATE" {
+			return nil, fmt.Errorf("client certificate %v: no CERTIFICATE block found", file.Name())
+		}
+
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse certificate file %v: %w", file.Name(), err)
+		}
+
+		pubKey, ok := cert.PublicKey.(ed25519.PublicKey)
+		if !ok {
+			return nil, fmt.Errorf("certificate file: %v. Only certificates with ed25519 public keys are allowed", file.Name())
+		}
+
+		sha := sha256.Sum256(pubKey)
+
+		shaHex := hex.EncodeToString(sha[:])
+
+		certPool[shaHex] = pubKey
+	}
+
+	return certPool, nil
 }

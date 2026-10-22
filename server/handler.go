@@ -43,7 +43,7 @@ func (s *Server) IPAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	env := os.Getenv("env") // WHY?
+	env := os.Getenv("env") // WHY? - maybe testing - TODO
 	if env != "local" {
 		err := s.Firewall.AddRuleForIP(ipInstance.IP)
 		if err != nil {
@@ -125,6 +125,7 @@ func (s *Server) IPDelete(w http.ResponseWriter, r *http.Request) {
 func writeOKResponse(w http.ResponseWriter, m interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
+
 	if err := json.NewEncoder(w).Encode(&JSONResponse{Data: m}); err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
 	}
@@ -134,13 +135,14 @@ func writeOKResponse(w http.ResponseWriter, m interface{}) {
 func writeErrorResponse(w http.ResponseWriter, errorCode int, errorMsg string) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(errorCode)
+
 	json.
 		NewEncoder(w).
-		Encode(&JSONErrorResponse{Error: &APIError{Status: errorCode, Title: errorMsg}})
+		Encode(&JSONErrorResponse{Error: &APIError{Status: errorCode, Message: errorMsg}})
 }
 
 // Populates a ip from the params in the Handler
-func populateIPFromHandler(w http.ResponseWriter, r *http.Request, ip interface{}) error {
+func populateIPFromHandler(w http.ResponseWriter, r *http.Request, ip *ip.IPAddress) error {
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1048576))
 	if err != nil {
 		return err

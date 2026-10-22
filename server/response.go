@@ -14,6 +14,6 @@ type JSONErrorResponse struct {
 
 // APIError defines api error struct
 type APIError struct {
-	Status int    `json:"status"`
-	Title  string `json:"title"`
+	Status  int    `json:"status"`
+	Message string `json:"message"`
 }

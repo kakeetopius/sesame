@@ -1,59 +1,57 @@
 package server
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/yaronf/httpsign"
 )
 
-type exception struct {
-	Message string `json:"message"`
-}
+func (s *Server) validateMiddleware(next http.Handler) http.Handler {
+	config := httpsign.NewHandlerConfig().
+		SetFetchVerifier(s.fetchVerifier).
+		SetReqNotVerified(s.onVerifyFail)
 
-// validateMiddleware validates the JWT
-func validateMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		authorizationHeader := req.Header.Get("authorization")
-		if authorizationHeader != "" {
-			//fmt.Println("authorizationHeader : ", authorizationHeader)
-			bearerToken := strings.Split(authorizationHeader, " ")
-			if len(bearerToken) == 2 {
-				key, err := jwt.ParseRSAPublicKeyFromPEM([]byte(publicCertContent))
-				if err != nil {
-					json.NewEncoder(w).Encode(exception{Message: err.Error()})
-					return
-				}
-				token, error := jwt.Parse(bearerToken[1], func(token *jwt.Token) (interface{}, error) {
-					if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-						return nil, fmt.Errorf("There was an error")
-					}
-					return key, nil
-				})
-				if error != nil {
-					json.NewEncoder(w).Encode(exception{Message: error.Error()})
-					return
-				}
-				if token.Valid {
-					next.ServeHTTP(w, req)
-				} else {
-					json.NewEncoder(w).Encode(exception{Message: "Invalid authorization token"})
-				}
-			}
-		} else {
-			json.NewEncoder(w).Encode(exception{Message: "An authorization header is required"})
-		}
-	})
+	return httpsign.WrapHandler(next, *config)
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Do stuff here
 		log.Println(r.RequestURI)
 		// Call the next handler, which can be another middleware in the chain, or the final handler.
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (s *Server) fetchVerifier(r *http.Request) (string, *httpsign.Verifier) {
+	sigName := SignatureName()
+
+	details, err := httpsign.RequestDetails(sigName, r)
+	if err != nil || details.KeyID == nil {
+		return sigName, nil
+	}
+
+	key, ok := s.AuthorizedClients[*details.KeyID]
+	if !ok {
+		return sigName, nil
+	}
+
+	mustBeSigned := MustBeSignedFields(r.Method)
+
+	v, err := httpsign.NewEd25519Verifier(key,
+		httpsign.NewVerifyConfig().SetKeyID(*details.KeyID),
+		*mustBeSigned,
+	)
+	if err != nil {
+		return sigName, nil
+	}
+
+	return sigName, v
+}
+
+func (s *Server) onVerifyFail(w http.ResponseWriter, r *http.Request, l *log.Logger, err error) {
+	if l != nil {
+		l.Printf("signature verification failed from %s: %v", r.RemoteAddr, err)
+	}
+	http.Error(w, "invalid signature", http.StatusUnauthorized)
 }

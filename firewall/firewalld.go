@@ -45,6 +45,8 @@ func (f *Firewalld) Name() string {
 // example:
 // firewall-cmd --permanent --zone=public --add-rich-rule='rule family="ipv4" source address="10.10.99.10/32" port protocol="tcp" port="22" accept'
 func (f *Firewalld) AddRuleForIP(ipAddr string) error {
+	// TODO: remove hardcoded family
+
 	cmd1 := exec.Command(
 		`firewall-cmd`, `--permanent`,
 		fmt.Sprintf("--zone=%v", f.Zone),
@@ -71,10 +73,11 @@ func (f *Firewalld) AddRuleForIP(ipAddr string) error {
 // DeleteRuleForIP disables rich rule for IP access + reloads
 func (f *Firewalld) DeleteRuleForIP(ipAddr string) error {
 	cmd1 := exec.Command(
-		`firewall-cmd`,
+		`firewall-cmd`, `--permanent`,
 		fmt.Sprintf("--zone=%v", f.Zone),
 		fmt.Sprintf(`--remove-rich-rule=rule family="ipv4" source address="%v/32" port protocol="tcp" port="%v" accept`, ipAddr, f.SSHPort),
 	)
+
 	output1, err1 := cmd1.CombinedOutput()
 	if err1 != nil {
 		return fmt.Errorf(string(output1))

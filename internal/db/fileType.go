@@ -3,6 +3,7 @@ package db
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -21,11 +22,22 @@ type fileType struct {
 
 type ipStore map[string]*ip.IPAddress
 
-// GetFileTypeInstance returns the singleton instance of the filedb object
-func GetFileTypeInstance(path string) Instance {
+func GetFileTypeInstance(path string) (Instance, error) {
+	err := os.MkdirAll(filepath.Dir(path), 0o660)
+	if err != nil {
+		return nil, fmt.Errorf("error opening server database: %w", err)
+	}
+
+	_, err = os.OpenFile(path, os.O_RDWR, 0o666)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("error opening server database: %w", err)
+		}
+	}
+
 	return &fileType{
 		path: path,
-	}
+	}, nil
 }
 
 // Type of the db
@@ -177,7 +189,7 @@ var marshal = func(v ipStore) (io.Reader, error) {
 // reader into the specified value.
 var unmarshal = func(r io.Reader, v ipStore) error {
 	d := gob.NewDecoder(r)
-	err := d.Decode(v)
+	err := d.Decode(&v)
 	if err != nil {
 		return err
 	}

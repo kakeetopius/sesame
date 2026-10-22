@@ -3,7 +3,6 @@ package config
 
 import (
 	"fmt"
-	"net/netip"
 
 	"github.com/spf13/viper"
 )
@@ -60,15 +59,11 @@ func LoadServerConfig(path string, setUpFuncs ...ConfigSetupFunc) (ServerConfig,
 }
 
 func (c *ServerConfig) Validate() error {
-	_, err := netip.ParseAddr(c.Addr)
-	if err != nil {
-		return fmt.Errorf("invalid listening IP address: ", c.Addr)
-	}
 	if c.Port <= 0 || c.Port >= 65536 {
-		return fmt.Errorf("invalid listening port: ", c.Port)
+		return fmt.Errorf("invalid listening port: %v", c.Port)
 	}
 	if c.SSHPort <= 0 || c.SSHPort >= 65536 {
-		return fmt.Errorf("invalid SSH port: ", c.SSHPort)
+		return fmt.Errorf("invalid SSH port: %v", c.SSHPort)
 	}
 
 	if !c.Insecure {
