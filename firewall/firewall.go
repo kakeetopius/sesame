@@ -1,7 +1,9 @@
 package firewall
 
 import (
+	"errors"
 	"fmt"
+	"os/exec"
 )
 
 type Firewall interface {
@@ -24,4 +26,17 @@ func (e ErrFirewallNotActive) Error() string {
 
 func (e ErrFirewallNotFound) Error() string {
 	return fmt.Sprintf("firewall command '%s' not found.", e.Name)
+}
+
+func checkBinaryDependeny(name string) error {
+	_, err := exec.LookPath(name)
+	if err != nil {
+		if execErr, ok := errors.AsType[*exec.Error](err); ok {
+			if errors.Is(execErr, exec.ErrNotFound) {
+				return ErrFirewallNotFound{Name: name}
+			}
+		}
+		return err
+	}
+	return nil
 }

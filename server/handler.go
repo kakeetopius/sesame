@@ -9,14 +9,13 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
-	"github.com/kakeetopius/sesame/firewall"
 	"github.com/kakeetopius/sesame/internal/ip"
 )
 
 // Index page
 // GET /
 func (s *Server) Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Welcome!\n")
+	fmt.Fprint(w, "Welcome! You can reach sesame.\n")
 }
 
 // IPAdd for the Create action
@@ -25,6 +24,12 @@ func (s *Server) IPAdd(w http.ResponseWriter, r *http.Request) {
 	ipInstance := &ip.IPAddress{}
 	if err := populateIPFromHandler(w, r, ipInstance); err != nil {
 		writeErrorResponse(w, http.StatusUnprocessableEntity, "Unprocessible Entity")
+		return
+	}
+
+	err := ipInstance.Verify()
+	if err != nil {
+		writeErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -38,11 +43,11 @@ func (s *Server) IPAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	env := os.Getenv("env")
+	env := os.Getenv("env") // WHY?
 	if env != "local" {
-		command, err := firewall.AddRuleForIP(ipInstance.IP)
+		err := s.Firewall.AddRuleForIP(ipInstance.IP)
 		if err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("cannot exec command %v, err : %v", command, err.Error()))
+			writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to add ip , err : %v", err.Error()))
 			return
 		}
 	}
@@ -100,20 +105,20 @@ func (s *Server) IPDelete(w http.ResponseWriter, r *http.Request) {
 
 	env := os.Getenv("env")
 	if env != "local" {
-		command, err := firewall.RemoveRuleForIP(ipAddr)
+		err := s.Firewall.DeleteRuleForIP(ipAddr)
 		if err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("cannot exec command %v, err : %v", command, err.Error()))
+			writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to delete ip, err : %v", err.Error()))
 			return
 		}
 	}
 
-	ip, err := s.DB.DeleteIP(ipAddr)
+	err = s.DB.DeleteIP(ipAddr)
 	if err != nil {
 		// IP could not be deleted
 		writeErrorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
-	writeOKResponse(w, ip)
+	writeOKResponse(w, ip.IPAddress{IP: ipAddr})
 }
 
 // Writes the response as a standard JSON response with StatusOK

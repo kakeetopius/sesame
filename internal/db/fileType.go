@@ -17,7 +17,6 @@ import (
 type fileType struct {
 	path string
 	lock sync.Mutex
-	once sync.Once
 }
 
 type ipStore map[string]*ip.IPAddress
@@ -91,20 +90,20 @@ func (fileType *fileType) AddIP(ip *ip.IPAddress) error {
 }
 
 // DeleteIP from the db
-func (fileType *fileType) DeleteIP(ipAddr string) (*ip.IPAddress, error) {
+func (fileType *fileType) DeleteIP(ipAddr string) error {
 	ipStore, err := fileType.loadIPStore()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	ip, ok := ipStore[ipAddr]
+	_, ok := ipStore[ipAddr]
 	if !ok {
-		return nil, fmt.Errorf("record not found")
+		return fmt.Errorf("ip not found")
 	}
 	delete(ipStore, ipAddr)
 	if err := fileType.saveIPStore(ipStore); err != nil {
-		return nil, fmt.Errorf("error while saving to file : %v", err)
+		return fmt.Errorf("error while saving to file : %v", err)
 	}
-	return ip, nil
+	return nil
 }
 
 func (fileType *fileType) loadIPStore() (ipStore, error) {

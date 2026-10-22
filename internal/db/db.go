@@ -9,5 +9,5 @@ type Instance interface {
 	GetAllIPs() ([]*ip.IPAddress, error)
 	CheckIPExists(ipAddr string) (bool, error)
 	AddIP(ip *ip.IPAddress) error
-	DeleteIP(ipAddr string) (*ip.IPAddress, error)
+	DeleteIP(ipAddr string) error
 }

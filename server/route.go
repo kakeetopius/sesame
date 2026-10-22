@@ -50,7 +50,7 @@ func (s *Server) addRoutes() {
 	}
 
 	router := mux.NewRouter()
-	subrouter := s.Router.PathPrefix("/m{[0-9]+}").Subrouter().StrictSlash(true)
+	subrouter := router.PathPrefix("/m{[0-9]+}").Subrouter().StrictSlash(true)
 	subrouter.Use(loggingMiddleware, validateMiddleware)
 
 	for _, route := range routesForApp {

@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/kakeetopius/sesame/firewall"
 	"github.com/kakeetopius/sesame/internal/config"
 	"github.com/kakeetopius/sesame/internal/db"
@@ -72,18 +74,34 @@ func runServer(cmd *cobra.Command, args []string) error {
 		Key:         key,
 		Cert:        cert,
 		ClientCerts: clientCerts,
-		Secure:      config.Secure,
+		Insecure:    config.Insecure,
 	})
 
 	return server.Run()
 }
 
 func loadFirewall(config *config.ServerConfig) (firewall.Firewall, error) {
-	return nil, nil
+	switch {
+	case config.Firewalld.Enabled:
+		firewalld, err := firewall.NewFirewalld(config.SSHPort, config.Firewalld.Zone)
+		if err != nil {
+			return nil, err
+		}
+		return firewalld, nil
+	case config.Ufw.Enabled:
+		ufw, err := firewall.NewUfw(config.SSHPort)
+		if err != nil {
+			return nil, err
+		}
+		return ufw, nil
+	default:
+		return nil, fmt.Errorf("no firewall is enabled")
+	}
 }
 
 func loadDB(config *config.ServerConfig) (db.Instance, error) {
-	return nil, nil
+	db := db.GetFileTypeInstance(config.DBFile)
+	return db, nil
 }
 
 func loadSeverKeyAndCert(config *config.ServerConfig) (string, string, error) {

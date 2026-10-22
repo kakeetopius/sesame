@@ -17,7 +17,7 @@ type Options struct {
 	Key         string
 	Cert        string
 	ClientCerts []string
-	Secure      bool
+	Insecure    bool
 }
 
 func New(opts Options) *Server {
