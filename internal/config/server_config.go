@@ -10,6 +10,9 @@ import (
 type ServerConfig struct {
 	Addr           string          `mapstructure:"address"`
 	Port           int             `mapstructure:"port"`
+	SSHPort        int             `mapstructure:"ssh_port"`
+	Secure         bool            `mapstructure:"secure"` // use https instead of http
+	DBFile         string          `mapstructure:"db"`
 	CertFile       string          `mapstructure:"cert_file"`
 	KeyFile        string          `mapstructure:"key_file"`
 	ClientCertsDir string          `mapstructure:"client_certs_dir"`

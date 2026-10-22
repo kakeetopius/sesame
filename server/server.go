@@ -7,21 +7,29 @@ import (
 )
 
 type Server struct {
-	Firewall       firewall.Firewall
-	KeyFile        string
-	CertFile       string
-	ClientCertsDir string
-
-	DB db.Instance
+	Options
 	*mux.Router
 }
 
-func New(firewall firewall.Firewall) *Server {
+type Options struct {
+	Firewall    firewall.Firewall
+	DB          db.Instance
+	Key         string
+	Cert        string
+	ClientCerts []string
+	Secure      bool
+}
+
+func New(opts Options) *Server {
 	s := &Server{
-		Firewall: firewall,
+		Options: opts,
 	}
 
 	s.addRoutes()
 
 	return s
+}
+
+func (s *Server) Run() error {
+	return nil
 }

@@ -11,5 +11,10 @@ func Command() *cobra.Command {
 		SilenceUsage: true,
 	}
 
+	rootCmd.AddCommand(
+		ServerCommand(),
+		ClientCommand(),
+	)
+
 	return rootCmd
 }
