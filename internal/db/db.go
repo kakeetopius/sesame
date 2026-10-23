@@ -1,3 +1,4 @@
+// Package db provides the different database implementations that can persist and retrieve IP addresses
 package db
 
 import "github.com/kakeetopius/sesame/internal/ip"

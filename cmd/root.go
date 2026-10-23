@@ -1,3 +1,4 @@
+// Package cmd provides the main command and sub commands for sesame.
 package cmd
 
 import (

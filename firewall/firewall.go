@@ -1,3 +1,4 @@
+// Package firewall provides the different firewall backends that can be used to dynamically add firewall rules to allow or block SSH for a particular IP address.
 package firewall
 
 import (

@@ -118,7 +118,7 @@ func TestAddIPNonLocal(t *testing.T) {
 
 	// Check the response body is what we expect.
 	expected := `cannot exec command `
-	if strings.Index(rr.Body.String(), expected) == -1 {
+	if !strings.Contains(rr.Body.String(), expected) {
 		t.Errorf("handler returned unexpected body: \ngot %v should have included : %v",
 			rr.Body.String(), expected)
 	}
@@ -243,7 +243,7 @@ func TestShowAllIPsAfterAdding(t *testing.T) {
 			status, http.StatusOK)
 	}
 	// make sure both IPs exist
-	if strings.Index(rr.Body.String(), ipAddr1) == -1 || strings.Index(rr.Body.String(), ipAddr2) == -1 {
+	if !strings.Contains(rr.Body.String(), ipAddr1) || !strings.Contains(rr.Body.String(), ipAddr2) {
 		t.Errorf("handler returned without required body: \ngot  %v want %v",
 			rr.Body.String(), ipAddr1)
 	}
@@ -268,7 +268,7 @@ func TestDeleteIPNonLocal(t *testing.T) {
 
 	// Check the response body is what we expect.
 	expected := `cannot exec command `
-	if strings.Index(rr.Body.String(), expected) == -1 {
+	if !strings.Contains(rr.Body.String(), expected) {
 		t.Errorf("handler returned unexpected body: \ngot %v should have included : %v",
 			rr.Body.String(), expected)
 	}
@@ -333,7 +333,7 @@ func TestShowAllIPsAfter(t *testing.T) {
 			status, http.StatusOK)
 	}
 	// make sure ip doesn't exist
-	if strings.Index(rr.Body.String(), ipAddr1) != -1 {
+	if strings.Contains(rr.Body.String(), ipAddr1) {
 		t.Errorf("handler contained deleted entry: \ngot  %vdeleted %v",
 			rr.Body.String(), ipAddr1)
 	}
@@ -345,7 +345,7 @@ func TestPopulateModelFromHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 	ipInstance := &ip.Address{}
-	if err := populateIPFromHandler(nil, req, ipInstance); err == nil {
+	if err = populateIPFromHandler(nil, req, ipInstance); err == nil {
 		t.Errorf("should have errored")
 	}
 
@@ -354,7 +354,7 @@ func TestPopulateModelFromHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 	ipInstance = &ip.Address{}
-	if err := populateIPFromHandler(nil, req, ipInstance); err == nil {
+	if err = populateIPFromHandler(nil, req, ipInstance); err == nil {
 		t.Errorf("should have errored")
 	}
 

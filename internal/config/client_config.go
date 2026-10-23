@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/viper"
 )
@@ -17,7 +19,17 @@ type ClientConfig struct {
 func LoadClientConfig(path string, setUpFuncs ...ConfigSetupFunc) (ClientConfig, error) {
 	clientConf := ClientConfig{}
 
-	viperConf, err := initConfig(path, "sesame", "/.config/sesame")
+	var defaultPath string
+
+	if path == "" {
+		configDir, err := os.UserConfigDir()
+		if err != nil {
+			return ClientConfig{}, fmt.Errorf("error getting user's configuration directory: %w", err)
+		}
+		defaultPath = filepath.Join(configDir, "sesame")
+	}
+
+	viperConf, err := initConfig(path, "sesame", defaultPath)
 	if err != nil {
 		if _, ok := errors.AsType[viper.ConfigFileNotFoundError](err); !ok {
 			return ClientConfig{}, err

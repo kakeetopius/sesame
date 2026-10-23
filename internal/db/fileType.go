@@ -20,7 +20,7 @@ type fileType struct {
 	lock sync.Mutex
 }
 
-type ipStore map[string]*ip.Address
+type ipAddrStore map[string]*ip.Address
 
 func GetFileTypeInstance(path string) (Instance, error) {
 	err := os.MkdirAll(filepath.Dir(path), 0o750)
@@ -119,8 +119,8 @@ func (fileType *fileType) DeleteIP(ipAddr string) error {
 	return nil
 }
 
-func (fileType *fileType) loadIPStore() (ipStore, error) {
-	ipStore := make(ipStore)
+func (fileType *fileType) loadIPStore() (ipAddrStore, error) {
+	ipStore := make(ipAddrStore)
 	if !fileExists(fileType.path) {
 		log.Printf("Db file not found, will be created here: %v\n", fileType.path)
 		return ipStore, nil
@@ -143,7 +143,7 @@ func (fileType *fileType) loadIPStore() (ipStore, error) {
 	return ipStore, nil
 }
 
-func (fileType *fileType) saveIPStore(ipStore ipStore) error {
+func (fileType *fileType) saveIPStore(ipStore ipAddrStore) error {
 	fileType.lock.Lock()
 	defer fileType.lock.Unlock()
 
@@ -174,7 +174,7 @@ func fileExists(filename string) bool {
 
 // marshal is a function that marshals the object into an
 // io.Reader.
-var marshal = func(v ipStore) (io.Reader, error) {
+var marshal = func(v ipAddrStore) (io.Reader, error) {
 	var buf bytes.Buffer
 	e := gob.NewEncoder(&buf)
 	err := e.Encode(v)
@@ -186,7 +186,7 @@ var marshal = func(v ipStore) (io.Reader, error) {
 
 // unmarshal is a function that unmarshals the data from the
 // reader into the specified value.
-var unmarshal = func(r io.Reader, v ipStore) error {
+var unmarshal = func(r io.Reader, v ipAddrStore) error {
 	d := gob.NewDecoder(r)
 	err := d.Decode(&v)
 	if err != nil {

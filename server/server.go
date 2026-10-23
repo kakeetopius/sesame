@@ -1,3 +1,4 @@
+// Package server provides the sesame server.
 package server
 
 import (
@@ -27,11 +28,19 @@ type Options struct {
 	CertFile          string
 	AuthorizedClients ClientKeys
 	Insecure          bool
+	Logger            *log.Logger
 }
 
 type ClientKeys map[string]ed25519.PublicKey // key is the sha256 hash encoded in hex of the PublicKey
 
 func New(opts Options) *Server {
+	if opts.AuthorizedClients == nil {
+		opts.AuthorizedClients = make(ClientKeys)
+	}
+	if opts.Logger == nil {
+		opts.Logger = log.Default()
+	}
+
 	s := &Server{
 		Options: opts,
 	}
@@ -42,10 +51,14 @@ func New(opts Options) *Server {
 }
 
 func (s *Server) Run() error {
-	log.Printf("server starting on %v:%v\n", s.Addr, s.Port)
+	s.Logger.Printf("Server starting on %v:%v\n", s.Addr, s.Port)
 	if s.Insecure {
+		s.Logger.Println("Server NOT using HTTPS")
 		return http.ListenAndServe(fmt.Sprintf("%v:%v", s.Addr, s.Port), s)
 	}
+
+	s.Logger.Println("Server is using HTTPS")
+	s.Logger.Printf("Using certificate %v and key file %v", s.CertFile, s.KeyFile)
 	return http.ListenAndServeTLS(fmt.Sprintf("%v:%v", s.Addr, s.Port), s.CertFile, s.KeyFile, s)
 }
 

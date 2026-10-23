@@ -9,27 +9,27 @@ import (
 )
 
 func (s *Server) validateMiddleware(next http.Handler) http.Handler {
-	config := httpsign.NewHandlerConfig().
+	config := httpsign.
+		NewHandlerConfig().
 		SetFetchVerifier(s.fetchVerifier).
 		SetReqNotVerified(s.onVerifyFail)
 
 	return httpsign.WrapHandler(next, *config)
 }
 
-func loggingMiddleware(next http.Handler) http.Handler {
+func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.RequestURI)
-		// Call the next handler, which can be another middleware in the chain, or the final handler.
+		s.Logger.Printf("Request from %s to %s\n", r.RemoteAddr, r.RequestURI)
 		next.ServeHTTP(w, r)
 	})
 }
 
-func recoveryMiddleWare(next http.Handler) http.Handler {
+func (s *Server) recoveryMiddleWare(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			err := recover()
 			if err != nil {
-				log.Printf("PANIC RECOVERED: %v\n%s", err, debug.Stack())
+				s.Logger.Printf("PANIC RECOVERED: %v\n%s", err, debug.Stack())
 
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
@@ -44,6 +44,12 @@ func (s *Server) fetchVerifier(r *http.Request) (string, *httpsign.Verifier) {
 
 	details, err := httpsign.RequestDetails(sigName, r)
 	if err != nil || details.KeyID == nil {
+		s.Logger.Println("got a signature without a key id from ", r.RemoteAddr)
+		return sigName, nil
+	}
+
+	if details.Alg != "ed25519" { // only ed25519 allowed.
+		s.Logger.Println("got a signature that didn't use ed25519 from ", r.RemoteAddr)
 		return sigName, nil
 	}
 
@@ -54,7 +60,8 @@ func (s *Server) fetchVerifier(r *http.Request) (string, *httpsign.Verifier) {
 
 	mustBeSigned := MustBeSignedFields(r.Method)
 
-	v, err := httpsign.NewEd25519Verifier(key,
+	v, err := httpsign.NewEd25519Verifier(
+		key,
 		httpsign.NewVerifyConfig().SetKeyID(*details.KeyID),
 		*mustBeSigned,
 	)

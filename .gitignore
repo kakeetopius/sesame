@@ -4,6 +4,7 @@ db/
 build/
 auth/
 certs/
+sesame
 
 # coverage
 *.html

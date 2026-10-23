@@ -19,7 +19,7 @@ func New(s string) (Address, error) {
 	if strings.Contains(s, "/") {
 		prefix, err := netip.ParsePrefix(s)
 		if err != nil {
-			return ip, fmt.Errorf("invalid IP address: ", s)
+			return ip, fmt.Errorf("invalid IP address: %v", s)
 		}
 
 		if prefix.Addr().Is4() {
@@ -42,7 +42,7 @@ func New(s string) (Address, error) {
 	} else {
 		addr, err := netip.ParseAddr(s)
 		if err != nil {
-			return ip, fmt.Errorf("invalid IP address: ", s)
+			return ip, fmt.Errorf("invalid IP address: %s", s)
 		}
 
 		ip.IP = s

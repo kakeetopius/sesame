@@ -3,13 +3,13 @@ package cmd
 import (
 	"crypto/ed25519"
 	"crypto/sha256"
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/kakeetopius/sesame/firewall"
 	"github.com/kakeetopius/sesame/internal/config"
@@ -46,6 +46,10 @@ func serverConfigSetup(cmd *cobra.Command) config.ConfigSetupFunc {
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("the sesame server requires root priviledges to run")
+	}
+
 	configPath, err := cmd.Flags().GetString("config")
 	if err != nil {
 		return err
@@ -80,6 +84,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 		DB:                db,
 		AuthorizedClients: clientCerts,
 		Insecure:          config.Insecure,
+		Logger:            log.Default(),
 	}
 
 	server := server.New(serverOpts)
@@ -94,12 +99,14 @@ func loadFirewall(config *config.ServerConfig) (firewall.Firewall, error) {
 		if err != nil {
 			return nil, err
 		}
+		log.Println("Using firewall backend 'firewalld'")
 		return firewalld, nil
 	case config.Ufw.Enabled:
 		ufw, err := firewall.NewUfw(config.SSHPort)
 		if err != nil {
 			return nil, err
 		}
+		log.Println("Using firewall backend 'ufw'")
 		return ufw, nil
 	default:
 		return nil, fmt.Errorf("no firewall is enabled")
@@ -107,15 +114,13 @@ func loadFirewall(config *config.ServerConfig) (firewall.Firewall, error) {
 }
 
 func loadDB(config *config.ServerConfig) (db.Instance, error) {
+	log.Println("Using database file ", config.DBFile)
 	return db.GetFileTypeInstance(config.DBFile)
-}
-
-func loadSeverCertificate(config *config.ServerConfig) (tls.Certificate, error) {
-	return tls.LoadX509KeyPair(config.CertFile, config.KeyFile)
 }
 
 func loadAuthorizedCerts(config *config.ServerConfig) (server.ClientKeys, error) {
 	certPool := make(server.ClientKeys)
+	log.Println("Using client authorized directory ", config.AuthorizedCertsDir)
 
 	authorizedDir, err := os.ReadDir(config.AuthorizedCertsDir)
 	if err != nil {
@@ -123,7 +128,7 @@ func loadAuthorizedCerts(config *config.ServerConfig) (server.ClientKeys, error)
 	}
 
 	if len(authorizedDir) == 0 {
-		log.Println("no authorized certificates found in ", config.AuthorizedCertsDir)
+		log.Println("No authorized certificates found in ", config.AuthorizedCertsDir)
 		return certPool, nil
 	}
 
@@ -131,7 +136,7 @@ func loadAuthorizedCerts(config *config.ServerConfig) (server.ClientKeys, error)
 		if file.IsDir() {
 			continue
 		}
-		certFile, err := os.ReadFile(file.Name())
+		certFile, err := os.ReadFile(filepath.Join(config.AuthorizedCertsDir, file.Name()))
 		if err != nil {
 			return nil, fmt.Errorf("failed to read certificate file %v: %w", file.Name(), err)
 		}

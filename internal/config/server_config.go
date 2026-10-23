@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/spf13/viper"
 )
@@ -68,23 +69,23 @@ func (c *ServerConfig) Validate() error {
 
 	if !c.Insecure {
 		if c.CertFile == "" {
-			return fmt.Errorf("https enabled but no path to server certificate file given.")
+			return fmt.Errorf("https enabled but no path to server certificate file given")
 		}
 		if c.KeyFile == "" {
-			return fmt.Errorf("https enabled but no path to server private key file given.")
+			return fmt.Errorf("https enabled but no path to server private key file given")
 		}
 	}
 
 	if c.AuthorizedCertsDir == "" {
-		return fmt.Errorf("no path to the clients' certificates directory given.")
+		return fmt.Errorf("no path to the clients' certificates directory given")
 	}
 
 	if c.Ufw.Enabled && c.Firewalld.Enabled {
-		return fmt.Errorf("cannot enable more than one firewall backend.")
+		return fmt.Errorf("cannot enable more than one firewall backend")
 	}
 
 	if !c.Ufw.Enabled && !c.Firewalld.Enabled {
-		return fmt.Errorf("no firewall backends are enabled.")
+		return fmt.Errorf("no firewall backends are enabled")
 	}
 
 	return nil
@@ -105,6 +106,12 @@ func (c *ServerConfig) setDefaults() {
 	}
 	if c.AuthorizedCertsDir == "" {
 		c.AuthorizedCertsDir = "/etc/sesame/authorized_certs"
+	}
+	if c.KeyFile == "" {
+		c.KeyFile = "/etc/sesame/sesame.key"
+	}
+	if c.CertFile == "" {
+		c.CertFile = "/etc/sesame/sesame.cert"
 	}
 
 	if c.Firewalld.Enabled && c.Firewalld.Zone == "" {
@@ -131,8 +138,9 @@ func initConfig(cfgFile string, defaultName string, defaultPath string) (*viper.
 	appConfig.AutomaticEnv() // read in environment variables that match
 
 	if err := appConfig.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("error reading config file %v: %w", viper.ConfigFileUsed(), err)
+		return nil, fmt.Errorf("error reading config file %v: %w", appConfig.ConfigFileUsed(), err)
 	}
+	log.Println("Using config file ", appConfig.ConfigFileUsed())
 
 	return appConfig, nil
 }

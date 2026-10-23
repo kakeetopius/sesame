@@ -58,13 +58,13 @@ func (f *Firewalld) AddRuleForIP(ipAddr ip.Address) error {
 	// }
 	output1, err1 := cmd1.CombinedOutput()
 	if err1 != nil {
-		return fmt.Errorf(string(output1))
+		return fmt.Errorf("%s", string(output1))
 	}
 	fmt.Printf("rich rule added successfully for ip %v : %v", ipAddr.IP, string(output1))
 
 	output2, err2 := f.reload()
 	if err2 != nil {
-		return fmt.Errorf(string(output2))
+		return fmt.Errorf("%s", string(output2))
 	}
 	fmt.Printf("firewalld reloaded successfully : %v", string(output2))
 	return nil
@@ -80,13 +80,13 @@ func (f *Firewalld) DeleteRuleForIP(ipAddr ip.Address) error {
 
 	output1, err1 := cmd1.CombinedOutput()
 	if err1 != nil {
-		return fmt.Errorf(string(output1))
+		return fmt.Errorf("%s", string(output1))
 	}
 	fmt.Printf("rich rule deleted successfully for ip %v : %v", ipAddr.IP, string(output1))
 
 	output2, err2 := f.reload()
 	if err2 != nil {
-		return fmt.Errorf(string(output2))
+		return fmt.Errorf("%s", string(output2))
 	}
 	fmt.Printf("firewalld reloaded successfully : %v", string(output2))
 	return nil

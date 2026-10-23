@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 
@@ -45,7 +44,7 @@ func (s *Server) IPAdd(w http.ResponseWriter, r *http.Request) {
 
 	env := os.Getenv("env") // WHY? - maybe testing - TODO
 	if env != "local" {
-		err := s.Firewall.AddRuleForIP(ipInstance)
+		err = s.Firewall.AddRuleForIP(ipInstance)
 		if err != nil {
 			writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to add ip , err : %v", err.Error()))
 			return
@@ -58,7 +57,7 @@ func (s *Server) IPAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeOKResponse(w, ipInstance)
+	writeOKResponse(w, "successfully added rule for ip "+ipInstance.IP)
 }
 
 // IPShow for the ip Show action
@@ -91,7 +90,6 @@ func (s *Server) ShowAllIPs(w http.ResponseWriter, r *http.Request) {
 func (s *Server) IPDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	ipStr := vars["ip"]
-	log.Printf("IP to delete %s\n", ipStr)
 
 	ipAddr, _ := ip.New(ipStr)
 
@@ -107,7 +105,7 @@ func (s *Server) IPDelete(w http.ResponseWriter, r *http.Request) {
 
 	env := os.Getenv("env")
 	if env != "local" {
-		err := s.Firewall.DeleteRuleForIP(ipAddr)
+		err = s.Firewall.DeleteRuleForIP(ipAddr)
 		if err != nil {
 			writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to delete ip, err : %v", err.Error()))
 			return
@@ -120,11 +118,11 @@ func (s *Server) IPDelete(w http.ResponseWriter, r *http.Request) {
 		writeErrorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
-	writeOKResponse(w, ip.Address{IP: ipStr})
+	writeOKResponse(w, "successfully deleted rule for ip "+ipStr)
 }
 
 // Writes the response as a standard JSON response with StatusOK
-func writeOKResponse(w http.ResponseWriter, m interface{}) {
+func writeOKResponse(w http.ResponseWriter, m any) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 
@@ -144,7 +142,7 @@ func writeErrorResponse(w http.ResponseWriter, errorCode int, errorMsg string) {
 }
 
 // Populates a ip from the params in the Handler
-func populateIPFromHandler(w http.ResponseWriter, r *http.Request, ip *ip.Address) error {
+func populateIPFromHandler(_ http.ResponseWriter, r *http.Request, ip *ip.Address) error {
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1048576))
 	if err != nil {
 		return err
