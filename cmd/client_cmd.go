@@ -104,10 +104,7 @@ func runClientAllow(cmd *cobra.Command, args []string) error {
 		httpsign.NewClientConfig().SetSignatureName(server.SignatureName()).SetSigner(signer),
 	)
 
-	ip := ip.IPAddress{
-		IP: args[0],
-	}
-	err = ip.Verify()
+	ip, err := ip.New(args[0])
 	if err != nil {
 		return err
 	}
@@ -158,10 +155,7 @@ func runClientDeny(cmd *cobra.Command, args []string) error {
 		httpsign.NewClientConfig().SetSignatureName(server.SignatureName()).SetSigner(signer),
 	)
 
-	ip := ip.IPAddress{
-		IP: args[0],
-	}
-	err = ip.Verify()
+	ip, err := ip.New(args[0])
 	if err != nil {
 		return err
 	}

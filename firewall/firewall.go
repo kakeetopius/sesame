@@ -4,12 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+
+	"github.com/kakeetopius/sesame/internal/ip"
 )
 
 type Firewall interface {
 	Name() string
-	AddRuleForIP(string) error
-	DeleteRuleForIP(string) error
+	AddRuleForIP(ip.Address) error
+	DeleteRuleForIP(ip.Address) error
 }
 
 type ErrFirewallNotActive struct {

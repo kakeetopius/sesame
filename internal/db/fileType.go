@@ -20,15 +20,16 @@ type fileType struct {
 	lock sync.Mutex
 }
 
-type ipStore map[string]*ip.IPAddress
+type ipStore map[string]*ip.Address
 
 func GetFileTypeInstance(path string) (Instance, error) {
-	err := os.MkdirAll(filepath.Dir(path), 0o660)
+	err := os.MkdirAll(filepath.Dir(path), 0o750)
 	if err != nil {
 		return nil, fmt.Errorf("error opening server database: %w", err)
 	}
 
-	_, err = os.OpenFile(path, os.O_RDWR, 0o666)
+	// check if we are allowed to access the db file.
+	_, err = os.OpenFile(path, os.O_RDWR, 0o660)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("error opening server database: %w", err)
@@ -46,7 +47,7 @@ func (fileType *fileType) Type() string {
 }
 
 // GetIP from the db
-func (fileType *fileType) GetIP(ipAddr string) (*ip.IPAddress, error) {
+func (fileType *fileType) GetIP(ipAddr string) (*ip.Address, error) {
 	ipStore, err := fileType.loadIPStore()
 	if err != nil {
 		return nil, err
@@ -59,8 +60,8 @@ func (fileType *fileType) GetIP(ipAddr string) (*ip.IPAddress, error) {
 }
 
 // GetAllIPs from the db
-func (fileType *fileType) GetAllIPs() ([]*ip.IPAddress, error) {
-	ips := []*ip.IPAddress{}
+func (fileType *fileType) GetAllIPs() ([]*ip.Address, error) {
+	ips := []*ip.Address{}
 	ipStore, err := fileType.loadIPStore()
 	if err != nil {
 		return nil, err
@@ -85,7 +86,7 @@ func (fileType *fileType) CheckIPExists(ipAddr string) (bool, error) {
 }
 
 // AddIP to the db
-func (fileType *fileType) AddIP(ip *ip.IPAddress) error {
+func (fileType *fileType) AddIP(ip *ip.Address) error {
 	ipStore, err := fileType.loadIPStore()
 	if err != nil {
 		return err
@@ -134,6 +135,9 @@ func (fileType *fileType) loadIPStore() (ipStore, error) {
 	defer f.Close()
 	err = unmarshal(f, ipStore)
 	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return ipStore, nil // do not error just because the file is empty
+		}
 		return nil, err
 	}
 	return ipStore, nil
@@ -142,11 +146,6 @@ func (fileType *fileType) loadIPStore() (ipStore, error) {
 func (fileType *fileType) saveIPStore(ipStore ipStore) error {
 	fileType.lock.Lock()
 	defer fileType.lock.Unlock()
-
-	err := os.MkdirAll(filepath.Dir(fileType.path), 0o750)
-	if err != nil {
-		return err
-	}
 
 	f, err := os.Create(fileType.path)
 	if err != nil {

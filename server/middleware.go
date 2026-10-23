@@ -3,6 +3,7 @@ package server
 import (
 	"log"
 	"net/http"
+	"runtime/debug"
 
 	"github.com/yaronf/httpsign"
 )
@@ -19,6 +20,21 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.RequestURI)
 		// Call the next handler, which can be another middleware in the chain, or the final handler.
+		next.ServeHTTP(w, r)
+	})
+}
+
+func recoveryMiddleWare(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			err := recover()
+			if err != nil {
+				log.Printf("PANIC RECOVERED: %v\n%s", err, debug.Stack())
+
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			}
+		}()
+
 		next.ServeHTTP(w, r)
 	})
 }

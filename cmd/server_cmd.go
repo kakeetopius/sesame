@@ -158,5 +158,7 @@ func loadAuthorizedCerts(config *config.ServerConfig) (server.ClientKeys, error)
 		certPool[shaHex] = pubKey
 	}
 
+	log.Printf("Found %v certificates in the authorized clients directory %v\n", len(certPool), config.AuthorizedCertsDir)
+
 	return certPool, nil
 }

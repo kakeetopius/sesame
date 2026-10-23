@@ -344,7 +344,7 @@ func TestPopulateModelFromHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ipInstance := &ip.IPAddress{}
+	ipInstance := &ip.Address{}
 	if err := populateIPFromHandler(nil, req, ipInstance); err == nil {
 		t.Errorf("should have errored")
 	}
@@ -353,7 +353,7 @@ func TestPopulateModelFromHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ipInstance = &ip.IPAddress{}
+	ipInstance = &ip.Address{}
 	if err := populateIPFromHandler(nil, req, ipInstance); err == nil {
 		t.Errorf("should have errored")
 	}
@@ -362,7 +362,7 @@ func TestPopulateModelFromHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ipInstance = &ip.IPAddress{}
+	ipInstance = &ip.Address{}
 	if err := populateIPFromHandler(nil, req, ipInstance); err != nil {
 		t.Errorf("should not have errored : %v", err)
 	}

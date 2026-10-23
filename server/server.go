@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/ed25519"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -41,6 +42,7 @@ func New(opts Options) *Server {
 }
 
 func (s *Server) Run() error {
+	log.Printf("server starting on %v:%v\n", s.Addr, s.Port)
 	if s.Insecure {
 		return http.ListenAndServe(fmt.Sprintf("%v:%v", s.Addr, s.Port), s)
 	}

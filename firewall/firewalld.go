@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/kakeetopius/sesame/internal/ip"
 )
 
 type Firewalld struct {
@@ -44,13 +46,11 @@ func (f *Firewalld) Name() string {
 // AddRuleForIP enables rich rule for IP access + reloads
 // example:
 // firewall-cmd --permanent --zone=public --add-rich-rule='rule family="ipv4" source address="10.10.99.10/32" port protocol="tcp" port="22" accept'
-func (f *Firewalld) AddRuleForIP(ipAddr string) error {
-	// TODO: remove hardcoded family
-
+func (f *Firewalld) AddRuleForIP(ipAddr ip.Address) error {
 	cmd1 := exec.Command(
 		`firewall-cmd`, `--permanent`,
 		fmt.Sprintf("--zone=%v", f.Zone),
-		fmt.Sprintf(`--add-rich-rule=rule family="ipv4" source address="%v/32" port protocol="tcp" port="%v" accept`, ipAddr, f.SSHPort),
+		fmt.Sprintf(`--add-rich-rule=rule family="%v" source address="%v/%v" port protocol="tcp" port="%v" accept`, ipAddr.Family, ipAddr.IP, ipAddr.Bits, f.SSHPort),
 	)
 	// uncomment for debugging
 	// for _, v := range cmd1.Args {
@@ -60,7 +60,7 @@ func (f *Firewalld) AddRuleForIP(ipAddr string) error {
 	if err1 != nil {
 		return fmt.Errorf(string(output1))
 	}
-	fmt.Printf("rich rule added successfully for ip %v : %v", ipAddr, string(output1))
+	fmt.Printf("rich rule added successfully for ip %v : %v", ipAddr.IP, string(output1))
 
 	output2, err2 := f.reload()
 	if err2 != nil {
@@ -71,18 +71,18 @@ func (f *Firewalld) AddRuleForIP(ipAddr string) error {
 }
 
 // DeleteRuleForIP disables rich rule for IP access + reloads
-func (f *Firewalld) DeleteRuleForIP(ipAddr string) error {
+func (f *Firewalld) DeleteRuleForIP(ipAddr ip.Address) error {
 	cmd1 := exec.Command(
 		`firewall-cmd`, `--permanent`,
 		fmt.Sprintf("--zone=%v", f.Zone),
-		fmt.Sprintf(`--remove-rich-rule=rule family="ipv4" source address="%v/32" port protocol="tcp" port="%v" accept`, ipAddr, f.SSHPort),
+		fmt.Sprintf(`--remove-rich-rule=rule family="%v" source address="%v/%v" port protocol="tcp" port="%v" accept`, ipAddr.Family, ipAddr.IP, ipAddr.Bits, f.SSHPort),
 	)
 
 	output1, err1 := cmd1.CombinedOutput()
 	if err1 != nil {
 		return fmt.Errorf(string(output1))
 	}
-	fmt.Printf("rich rule deleted successfully for ip %v : %v", ipAddr, string(output1))
+	fmt.Printf("rich rule deleted successfully for ip %v : %v", ipAddr.IP, string(output1))
 
 	output2, err2 := f.reload()
 	if err2 != nil {
@@ -110,12 +110,14 @@ func (f *Firewalld) isActive() (bool, error) {
 	cmd.Stderr = stderr
 	cmd.Stdout = stdout
 
+	var scanner *bufio.Scanner
 	err := cmd.Run()
 	if err != nil {
-		return false, fmt.Errorf("firewall-cmd --state failed: %v", stderr.String())
+		scanner = bufio.NewScanner(stderr) // when status is 'not running' it is written to StdErr and firewall-cmd will exit with non-zero status hence err != nil
+	} else {
+		scanner = bufio.NewScanner(stdout)
 	}
 
-	scanner := bufio.NewScanner(stdout)
 	if ok := scanner.Scan(); !ok {
 		return false, fmt.Errorf("could not get firewall-cmd --state")
 	}
@@ -127,6 +129,6 @@ func (f *Firewalld) isActive() (bool, error) {
 	case "not running":
 		return false, nil
 	default:
-		return false, fmt.Errorf("unexpected firewall-cmd --state output: %v", stdout.String())
+		return false, fmt.Errorf("firewall-cmd --state failed: %v", stdout.String())
 	}
 }

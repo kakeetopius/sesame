@@ -21,13 +21,13 @@ func (s *Server) Index(w http.ResponseWriter, r *http.Request) {
 // IPAdd for the Create action
 // POST /ip
 func (s *Server) IPAdd(w http.ResponseWriter, r *http.Request) {
-	ipInstance := &ip.IPAddress{}
-	if err := populateIPFromHandler(w, r, ipInstance); err != nil {
+	ipInstance := ip.Address{}
+	if err := populateIPFromHandler(w, r, &ipInstance); err != nil {
 		writeErrorResponse(w, http.StatusUnprocessableEntity, "Unprocessible Entity")
 		return
 	}
 
-	err := ipInstance.Verify()
+	ipInstance, err := ip.New(ipInstance.IP) // New will validate the ip and populate some other fields not given in JSON.
 	if err != nil {
 		writeErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
@@ -45,14 +45,14 @@ func (s *Server) IPAdd(w http.ResponseWriter, r *http.Request) {
 
 	env := os.Getenv("env") // WHY? - maybe testing - TODO
 	if env != "local" {
-		err := s.Firewall.AddRuleForIP(ipInstance.IP)
+		err := s.Firewall.AddRuleForIP(ipInstance)
 		if err != nil {
 			writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to add ip , err : %v", err.Error()))
 			return
 		}
 	}
 
-	err = s.DB.AddIP(ipInstance)
+	err = s.DB.AddIP(&ipInstance)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
@@ -90,10 +90,12 @@ func (s *Server) ShowAllIPs(w http.ResponseWriter, r *http.Request) {
 // DELETE /ip/{ip}
 func (s *Server) IPDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	ipAddr := vars["ip"]
-	log.Printf("IP to delete %s\n", ipAddr)
+	ipStr := vars["ip"]
+	log.Printf("IP to delete %s\n", ipStr)
 
-	ipExists, err := s.DB.CheckIPExists(ipAddr)
+	ipAddr, _ := ip.New(ipStr)
+
+	ipExists, err := s.DB.CheckIPExists(ipStr)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
@@ -112,13 +114,13 @@ func (s *Server) IPDelete(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = s.DB.DeleteIP(ipAddr)
+	err = s.DB.DeleteIP(ipStr)
 	if err != nil {
 		// IP could not be deleted
 		writeErrorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
-	writeOKResponse(w, ip.IPAddress{IP: ipAddr})
+	writeOKResponse(w, ip.Address{IP: ipStr})
 }
 
 // Writes the response as a standard JSON response with StatusOK
@@ -142,7 +144,7 @@ func writeErrorResponse(w http.ResponseWriter, errorCode int, errorMsg string) {
 }
 
 // Populates a ip from the params in the Handler
-func populateIPFromHandler(w http.ResponseWriter, r *http.Request, ip *ip.IPAddress) error {
+func populateIPFromHandler(w http.ResponseWriter, r *http.Request, ip *ip.Address) error {
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1048576))
 	if err != nil {
 		return err

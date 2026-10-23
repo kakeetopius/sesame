@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kakeetopius/sesame/internal/ip"
 )
 
 type Ufw struct {
@@ -40,13 +42,12 @@ func NewUfw(sshPort int) (*Ufw, error) {
 	return f, nil
 }
 
-// AddRuleForIP enables rich rule for IP access + reloads
+// AddRuleForIP enables rule for IP access + reloads
 // example:
-// firewall-cmd --permanent --zone=public --add-rich-rule='rule family="ipv4" source address="10.10.99.10/32" port protocol="tcp" port="22" accept'
-func (f *Ufw) AddRuleForIP(ipAddr string) error {
+func (f *Ufw) AddRuleForIP(ipAddr ip.Address) error {
 	cmd1 := exec.Command(
 		"ufw", "allow",
-		"from", ipAddr,
+		"from", ipAddr.IP,
 		"to", "any",
 		"port", strconv.Itoa(f.SSHPort),
 		"proto", "tcp",
@@ -59,7 +60,7 @@ func (f *Ufw) AddRuleForIP(ipAddr string) error {
 	if err1 != nil {
 		return fmt.Errorf(string(output1))
 	}
-	fmt.Printf("rule added successfully for ip %v : %v", ipAddr, string(output1))
+	fmt.Printf("rule added successfully for ip %v : %v", ipAddr.IP, string(output1))
 
 	output2, err2 := f.reload()
 	if err2 != nil {
@@ -69,11 +70,11 @@ func (f *Ufw) AddRuleForIP(ipAddr string) error {
 	return nil
 }
 
-// DeleteRuleForIP disables rich rule for IP access + reloads
-func (f *Ufw) DeleteRuleForIP(ipAddr string) error {
+// DeleteRuleForIP disables rule for IP access + reloads
+func (f *Ufw) DeleteRuleForIP(ipAddr ip.Address) error {
 	cmd1 := exec.Command(
 		"ufw", "delete", "allow",
-		"from", ipAddr,
+		"from", ipAddr.IP,
 		"to", "any",
 		"port", strconv.Itoa(f.SSHPort),
 		"proto", "tcp",
@@ -82,7 +83,7 @@ func (f *Ufw) DeleteRuleForIP(ipAddr string) error {
 	if err1 != nil {
 		return fmt.Errorf(string(output1))
 	}
-	fmt.Printf("rule deleted successfully for ip %v : %v", ipAddr, string(output1))
+	fmt.Printf("rule deleted successfully for ip %v : %v", ipAddr.IP, string(output1))
 
 	output2, err2 := f.reload()
 	if err2 != nil {
