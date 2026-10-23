@@ -1,0 +1,14 @@
+address = "127.0.0.1"
+port = 8080
+ssh_port = 22
+insecure = true
+db = "db/sesame.db"
+authorized_certs_dir = "auth"
+
+[firewalld]
+enabled = true
+zone = "public"
+
+[ufw]
+enabled = false
+

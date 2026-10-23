@@ -4,10 +4,10 @@ metadata:
   name: external-rest #external-rest-2 for 2nd machine and so on
 spec:
   ports:
-  - name: firewalld
-    protocol: TCP
-    port: 80
-    targetPort: 8080
+    - name: sesame
+      protocol: TCP
+      port: 80
+      targetPort: 8080
 ---
 apiVersion: v1
 kind: Endpoints
@@ -19,3 +19,4 @@ subsets:
     ports:
       - port: 8080
         name: firewalld
+

@@ -1,6 +1,9 @@
 .env
+db/
 *.db
 build/
+auth/
+certs/
 
 # coverage
 *.html
