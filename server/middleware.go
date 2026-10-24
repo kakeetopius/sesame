@@ -12,7 +12,8 @@ func (s *Server) validateMiddleware(next http.Handler) http.Handler {
 	config := httpsign.
 		NewHandlerConfig().
 		SetFetchVerifier(s.fetchVerifier).
-		SetReqNotVerified(s.onVerifyFail)
+		SetReqNotVerified(s.onVerifyFail).
+		SetLogger(s.Logger)
 
 	return httpsign.WrapHandler(next, *config)
 }
@@ -76,5 +77,5 @@ func (s *Server) onVerifyFail(w http.ResponseWriter, r *http.Request, l *log.Log
 	if l != nil {
 		l.Printf("signature verification failed from %s: %v", r.RemoteAddr, err)
 	}
-	http.Error(w, "invalid signature", http.StatusUnauthorized)
+	http.Error(w, "wrong magic word (signature verification failed)", http.StatusUnauthorized)
 }
