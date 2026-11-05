@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -15,20 +16,25 @@ import (
 
 type Ufw struct {
 	SSHPort int
+	Logger  *log.Logger
 }
 
 func (f *Ufw) Name() string {
 	return "ufw"
 }
 
-func NewUfw(sshPort int) (*Ufw, error) {
+func NewUfw(sshPort int, logger *log.Logger) (*Ufw, error) {
 	err := checkBinaryDependeny("ufw")
 	if err != nil {
 		return nil, err
 	}
+	if logger == nil {
+		logger = log.Default()
+	}
 
 	f := new(Ufw{
 		SSHPort: sshPort,
+		Logger:  logger,
 	})
 
 	active, err := f.isActive()
@@ -60,13 +66,13 @@ func (f *Ufw) AddRuleForIP(ipAddr ip.Address) error {
 	if err1 != nil {
 		return fmt.Errorf("%s", string(output1))
 	}
-	fmt.Printf("rule added successfully for ip %v : %v", ipAddr.IP, string(output1))
+	f.Logger.Printf("rule added successfully for ip %v : %v", ipAddr.IP, string(output1))
 
 	output2, err2 := f.reload()
 	if err2 != nil {
 		return fmt.Errorf("%s", string(output2))
 	}
-	fmt.Printf("ufw reloaded successfully : %v", string(output2))
+	f.Logger.Printf("ufw reloaded successfully : %v", string(output2))
 	return nil
 }
 
@@ -83,13 +89,13 @@ func (f *Ufw) DeleteRuleForIP(ipAddr ip.Address) error {
 	if err1 != nil {
 		return fmt.Errorf("%s", string(output1))
 	}
-	fmt.Printf("rule deleted successfully for ip %v : %v", ipAddr.IP, string(output1))
+	f.Logger.Printf("rule deleted successfully for ip %v : %v", ipAddr.IP, string(output1))
 
 	output2, err2 := f.reload()
 	if err2 != nil {
 		return fmt.Errorf("%s", string(output2))
 	}
-	fmt.Printf("ufw reloaded successfully : %v", string(output2))
+	f.Logger.Printf("ufw reloaded successfully : %v", string(output2))
 	return nil
 }
 

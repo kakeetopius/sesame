@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/kakeetopius/sesame/internal/ip"
@@ -26,7 +25,9 @@ func (s *Server) IPAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.fwLock.Lock()
 	status, err := s.FwHandler.AddIP(ipInstance)
+	s.fwLock.Unlock()
 	if err != nil {
 		writeErrorResponse(w, status, err.Error())
 		return
@@ -40,7 +41,10 @@ func (s *Server) IPAdd(w http.ResponseWriter, r *http.Request) {
 func (s *Server) IPShow(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	ipAddr := vars["ip"]
+
+	s.fwLock.RLock()
 	ip, status, err := s.FwHandler.GetIP(ipAddr)
+	s.fwLock.RUnlock()
 	if err != nil {
 		writeErrorResponse(w, status, err.Error())
 		return
@@ -51,7 +55,9 @@ func (s *Server) IPShow(w http.ResponseWriter, r *http.Request) {
 // ShowAllIPs shows all IPs
 // GET /ip
 func (s *Server) ShowAllIPs(w http.ResponseWriter, r *http.Request) {
+	s.fwLock.RLock()
 	ips, status, err := s.FwHandler.GetAllIPs()
+	s.fwLock.RUnlock()
 	if err != nil {
 		writeErrorResponse(w, status, err.Error())
 		return
@@ -65,7 +71,9 @@ func (s *Server) IPDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	ipStr := vars["ip"]
 
+	s.fwLock.Lock()
 	status, err := s.FwHandler.DeleteIP(ipStr)
+	s.fwLock.Unlock()
 	if err != nil {
 		writeErrorResponse(w, status, err.Error())
 		return
@@ -105,6 +113,5 @@ func populateIPFromHandler(_ http.ResponseWriter, r *http.Request, ip *ip.Addres
 	if err := json.Unmarshal(body, ip); err != nil {
 		return err
 	}
-	ip.Added = time.Now()
 	return nil
 }

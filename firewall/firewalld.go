@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os/exec"
 	"strings"
 	"time"
@@ -15,17 +16,22 @@ import (
 type Firewalld struct {
 	SSHPort int
 	Zone    string
+	Logger  *log.Logger
 }
 
-func NewFirewalld(sshPort int, zone string) (*Firewalld, error) {
+func NewFirewalld(sshPort int, zone string, logger *log.Logger) (*Firewalld, error) {
 	err := checkBinaryDependeny("firewall-cmd")
 	if err != nil {
 		return nil, err
+	}
+	if logger == nil {
+		logger = log.Default()
 	}
 
 	f := new(Firewalld{
 		SSHPort: sshPort,
 		Zone:    zone,
+		Logger:  logger,
 	})
 
 	active, err := f.isActive()
@@ -60,13 +66,13 @@ func (f *Firewalld) AddRuleForIP(ipAddr ip.Address) error {
 	if err1 != nil {
 		return fmt.Errorf("%s", string(output1))
 	}
-	fmt.Printf("rich rule added successfully for ip %v : %v", ipAddr.IP, string(output1))
+	f.Logger.Printf("rich rule added successfully for ip %v : %v", ipAddr.IP, string(output1))
 
 	output2, err2 := f.reload()
 	if err2 != nil {
 		return fmt.Errorf("%s", string(output2))
 	}
-	fmt.Printf("firewalld reloaded successfully : %v", string(output2))
+	f.Logger.Printf("firewalld reloaded successfully : %v", string(output2))
 	return nil
 }
 
@@ -82,13 +88,13 @@ func (f *Firewalld) DeleteRuleForIP(ipAddr ip.Address) error {
 	if err1 != nil {
 		return fmt.Errorf("%s", string(output1))
 	}
-	fmt.Printf("rich rule deleted successfully for ip %v : %v", ipAddr.IP, string(output1))
+	f.Logger.Printf("rich rule deleted successfully for ip %v : %v", ipAddr.IP, string(output1))
 
 	output2, err2 := f.reload()
 	if err2 != nil {
 		return fmt.Errorf("%s", string(output2))
 	}
-	fmt.Printf("firewalld reloaded successfully : %v", string(output2))
+	f.Logger.Printf("firewalld reloaded successfully : %v", string(output2))
 	return nil
 }
 

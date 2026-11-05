@@ -4,7 +4,7 @@ A REST application (with a built-in client) that dynamically updates firewall ru
 
 Works with `firewalld` or `ufw`.
 
-sesame started as a fork of [firewalld-rest](https://github.com/prashantgupta24/firewalld-rest) and has since changed a bit specifically `ufw` support and certificate-based request signing instead of JWT.
+sesame started as a fork of [firewalld-rest](https://github.com/prashantgupta24/firewalld-rest) and has since changed a bit specifically `ufw` support, certificate-based request signing instead of JWT, and automatic deletion of aged rules.
 
 ## Purpose
 
@@ -78,6 +78,14 @@ What is signed:
 | `POST`       | `@method`, `@authority`, `@path`, `content-digest` |
 
 There is no shared secret on the server. To revoke a client, remove its certificate from `authorized_certs_dir`.
+
+### 2.4 Aged rule deletion
+
+In addition to being deleted with a `deny` request, rules are deleted automatically when they get old:
+
+- `delete_aged_rules` (default `true`) enables this. A rule older than `rule_max_age` (default `1h`) is deleted.
+- Age is measured from when sesame created the rule, which is stored in its database. Rules added to the firewall by hand are not tracked and are never touched.
+- Deleting a rule does not cut an existing SSH session. New connections from that IP are refused until it is allowed again.
 
 ## 3. Installation
 
@@ -190,11 +198,14 @@ sesame uses [Viper](https://github.com/spf13/viper), so the config file can be a
 address = "0.0.0.0"
 port = 8080
 ssh_port = 22
-insecure = false                 # false = serve over TLS
+https = false   # https is enabled by default
 db = "/var/sesame/sesame.db"
 cert_file = "/etc/sesame/sesame.cert"
 key_file = "/etc/sesame/sesame.key"
 authorized_certs_dir = "/etc/sesame/authorized_certs"
+
+delete_aged_rules = true # delete all rules that are older than rule_max_age (default is true)
+rule_max_age = "30m"    # after how long can a rule be considered 'aged' (default is 1 hour). Possible values are 20s, 30m, 2h, 2h30m20s etc
 
 [firewalld]
 enabled = true
@@ -208,18 +219,21 @@ Use **either** `[firewalld]` **or** `[ufw]`: exactly one must be enabled.
 
 **Defaults** (used when a value is not set):
 
-| Key                    | Default                              |
-| ---------------------- | ------------------------------------ |
-| `address`              | `0.0.0.0`                            |
-| `port`                 | `8080`                               |
-| `ssh_port`             | `22`                                 |
-| `db`                   | `/var/sesame/sesame.db`              |
-| `authorized_certs_dir` | `/etc/sesame/authorized_certs`       |
-| `key_file`             | `/etc/sesame/sesame.key`             |
-| `cert_file`            | `/etc/sesame/sesame.cert`            |
-| `firewalld.zone`       | `public` (when firewalld is enabled) |
+| Key                    | Default                               |
+| ---------------------- | ------------------------------------- |
+| `address`              | `0.0.0.0`                             |
+| `port`                 | `8080`                                |
+| `https`                | `true`                                |
+| `ssh_port`             | `22`                                  |
+| `db`                   | `/var/sesame/sesame.db`               |
+| `authorized_certs_dir` | `/etc/sesame/authorized_certs`        |
+| `key_file`             | `/etc/sesame/sesame.key`              |
+| `cert_file`            | `/etc/sesame/sesame.cert`             |
+| `delete_aged_rules`    | `true`                                |
+| `rule_max_age`         | `1h` (when `delete_aged_rules` is on) |
+| `firewalld.zone`       | `public` (when firewalld is enabled)  |
 
-`insecure = true` serves plain HTTP instead of TLS. In that case `cert_file` and `key_file` are not needed. Only use it for local testing or behind something that terminates TLS for you.
+`https = false` serves plain HTTP instead of TLS. In that case `cert_file` and `key_file` are not needed. Only use it for local testing or behind something that terminates TLS for you.
 
 **Server flags** (these can override the config file):
 

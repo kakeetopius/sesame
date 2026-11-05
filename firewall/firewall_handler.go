@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/kakeetopius/sesame/internal/db"
 	"github.com/kakeetopius/sesame/internal/ip"
@@ -41,6 +42,8 @@ func (h Handler) AddIP(ipAddr ip.Address) (int, error) {
 	if ipExists {
 		return http.StatusBadRequest, ErrIPExists
 	}
+
+	ipInstance.Added = time.Now()
 
 	env := os.Getenv("env")
 	if env != "local" {
@@ -103,4 +106,36 @@ func (h Handler) GetAllIPs() ([]ip.Address, int, error) {
 	}
 
 	return ips, http.StatusOK, nil
+}
+
+func (h Handler) DeleteAgedRules(maxAge time.Duration) error {
+	ips, err := h.DB.GetAllIPs()
+	if err != nil {
+		return err
+	}
+	if len(ips) == 0 {
+		return nil
+	}
+
+	var errs []error
+	now := time.Now()
+	for _, ip := range ips {
+		age := now.Sub(ip.Added)
+		if age < maxAge {
+			continue
+		}
+
+		h.Logger.Printf("deleting aged rule for %v, added at %v (%v ago)\n", ip, ip.Added, age)
+		err = h.Firewall.DeleteRuleForIP(ip)
+		if err != nil {
+			return err
+		}
+
+		err = h.DB.DeleteIP(ip.IP)
+		if err != nil {
+			return err
+		}
+	}
+
+	return errors.Join(errs...)
 }

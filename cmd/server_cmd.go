@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"crypto/x509"
@@ -9,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 
 	"github.com/kakeetopius/sesame/firewall"
@@ -82,32 +84,37 @@ func runServer(cmd *cobra.Command, args []string) error {
 	})
 
 	serverOpts := server.Options{
-		Addr:              config.Addr,
-		Port:              config.Port,
-		KeyFile:           config.KeyFile,
-		CertFile:          config.CertFile,
-		AuthorizedClients: clientCerts,
-		Insecure:          config.Insecure,
-		FwHandler:         fwHandler,
-		Logger:            log.Default(),
+		Addr:                config.Addr,
+		Port:                config.Port,
+		KeyFile:             config.KeyFile,
+		CertFile:            config.CertFile,
+		AuthorizedClients:   clientCerts,
+		HTTPSEnabled:        config.HTTPSEnabled,
+		FwHandler:           fwHandler,
+		RuleDeletionEnabled: config.RuleDeletionEnabled,
+		RuleMaxAge:          config.RuleMaxAge,
+		Logger:              log.Default(),
 	}
 
 	server := server.New(serverOpts)
 
-	return server.Run()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	return server.Run(ctx)
 }
 
 func loadFirewall(config *config.ServerConfig) (firewall.Firewall, error) {
 	switch {
 	case config.Firewalld.Enabled:
-		firewalld, err := firewall.NewFirewalld(config.SSHPort, config.Firewalld.Zone)
+		firewalld, err := firewall.NewFirewalld(config.SSHPort, config.Firewalld.Zone, log.Default())
 		if err != nil {
 			return nil, err
 		}
 		log.Println("Using firewall backend 'firewalld'")
 		return firewalld, nil
 	case config.Ufw.Enabled:
-		ufw, err := firewall.NewUfw(config.SSHPort)
+		ufw, err := firewall.NewUfw(config.SSHPort, log.Default())
 		if err != nil {
 			return nil, err
 		}

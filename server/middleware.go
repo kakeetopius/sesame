@@ -75,7 +75,7 @@ func (s *Server) fetchVerifier(r *http.Request) (string, *httpsign.Verifier) {
 
 func (s *Server) onVerifyFail(w http.ResponseWriter, r *http.Request, l *log.Logger, err error) {
 	if l != nil {
-		l.Printf("signature verification failed from %s: %v", r.RemoteAddr, err)
+		l.Printf("signature verification failed from %s: %v\n", r.RemoteAddr, err)
 	}
 	http.Error(w, "wrong magic word (signature verification failed)", http.StatusUnauthorized)
 }

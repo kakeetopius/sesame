@@ -1,9 +1,11 @@
 address = "127.0.0.1"
 port = 8080
 ssh_port = 22
-insecure = true
+https = false  # true by default
 db = "db/sesame.db"
 authorized_certs_dir = "auth"
+delete_aged_rules = false # true by default
+rule_max_age = "1h"
 
 [firewalld]
 enabled = true
