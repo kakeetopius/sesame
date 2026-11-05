@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net/netip"
 	"strings"
+	"time"
 )
 
 type Address struct {
-	IP     string `json:"ip"`
-	Family string `json:"-"`
-	Bits   int    `json:"-"`
+	IP     string    `json:"ip"`
+	Family string    `json:"-"`
+	Bits   int       `json:"-"`
+	Added  time.Time `json:"added"`
 }
 
 func New(s string) (Address, error) {

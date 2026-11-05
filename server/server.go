@@ -10,7 +10,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/kakeetopius/sesame/firewall"
-	"github.com/kakeetopius/sesame/internal/db"
 	"github.com/yaronf/httpsign"
 )
 
@@ -22,12 +21,11 @@ type Server struct {
 type Options struct {
 	Addr              string
 	Port              int
-	Firewall          firewall.Firewall
-	DB                db.Instance
 	KeyFile           string
 	CertFile          string
 	AuthorizedClients ClientKeys
 	Insecure          bool
+	FwHandler         firewall.Handler
 	Logger            *log.Logger
 }
 

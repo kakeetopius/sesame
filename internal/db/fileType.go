@@ -20,7 +20,7 @@ type fileType struct {
 	lock sync.Mutex
 }
 
-type ipAddrStore map[string]*ip.Address
+type ipAddrStore map[string]ip.Address
 
 func GetFileTypeInstance(path string) (Instance, error) {
 	err := os.MkdirAll(filepath.Dir(path), 0o750)
@@ -47,21 +47,21 @@ func (fileType *fileType) Type() string {
 }
 
 // GetIP from the db
-func (fileType *fileType) GetIP(ipAddr string) (*ip.Address, error) {
+func (fileType *fileType) GetIP(ipAddr string) (ip.Address, error) {
 	ipStore, err := fileType.loadIPStore()
 	if err != nil {
-		return nil, err
+		return ip.Address{}, err
 	}
-	ip, ok := ipStore[ipAddr]
+	ipInstance, ok := ipStore[ipAddr]
 	if !ok {
-		return nil, fmt.Errorf("ip not found")
+		return ip.Address{}, fmt.Errorf("ip not found")
 	}
-	return ip, nil
+	return ipInstance, nil
 }
 
 // GetAllIPs from the db
-func (fileType *fileType) GetAllIPs() ([]*ip.Address, error) {
-	ips := []*ip.Address{}
+func (fileType *fileType) GetAllIPs() ([]ip.Address, error) {
+	ips := []ip.Address{}
 	ipStore, err := fileType.loadIPStore()
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func (fileType *fileType) CheckIPExists(ipAddr string) (bool, error) {
 }
 
 // AddIP to the db
-func (fileType *fileType) AddIP(ip *ip.Address) error {
+func (fileType *fileType) AddIP(ip ip.Address) error {
 	ipStore, err := fileType.loadIPStore()
 	if err != nil {
 		return err

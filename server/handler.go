@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/kakeetopius/sesame/internal/ip"
@@ -14,7 +14,7 @@ import (
 // Index page
 // GET /
 func (s *Server) Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Welcome! You can reach sesame.\n")
+	fmt.Fprint(w, "Welcome! You can reach sesame. You can allow an IP address using the `/ip' endpoint.\n")
 }
 
 // IPAdd for the Create action
@@ -26,38 +26,13 @@ func (s *Server) IPAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ipInstance, err := ip.New(ipInstance.IP) // New will validate the ip and populate some other fields not given in JSON.
+	status, err := s.FwHandler.AddIP(ipInstance)
 	if err != nil {
-		writeErrorResponse(w, http.StatusBadRequest, err.Error())
+		writeErrorResponse(w, status, err.Error())
 		return
 	}
 
-	ipExists, err := s.DB.CheckIPExists(ipInstance.IP)
-	if err != nil {
-		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if ipExists {
-		writeErrorResponse(w, http.StatusBadRequest, "ip already exists")
-		return
-	}
-
-	env := os.Getenv("env") // WHY? - maybe testing - TODO
-	if env != "local" {
-		err = s.Firewall.AddRuleForIP(ipInstance)
-		if err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to add ip , err : %v", err.Error()))
-			return
-		}
-	}
-
-	err = s.DB.AddIP(&ipInstance)
-	if err != nil {
-		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	writeOKResponse(w, "successfully added rule for ip "+ipInstance.IP)
+	writeOKResponse(w, status, "successfully added rule for ip "+ipInstance.IP)
 }
 
 // IPShow for the ip Show action
@@ -65,24 +40,23 @@ func (s *Server) IPAdd(w http.ResponseWriter, r *http.Request) {
 func (s *Server) IPShow(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	ipAddr := vars["ip"]
-	ip, err := s.DB.GetIP(ipAddr)
+	ip, status, err := s.FwHandler.GetIP(ipAddr)
 	if err != nil {
-		// No IP found
-		writeErrorResponse(w, http.StatusNotFound, err.Error())
+		writeErrorResponse(w, status, err.Error())
 		return
 	}
-	writeOKResponse(w, ip)
+	writeOKResponse(w, status, ip)
 }
 
 // ShowAllIPs shows all IPs
 // GET /ip
 func (s *Server) ShowAllIPs(w http.ResponseWriter, r *http.Request) {
-	ips, err := s.DB.GetAllIPs()
+	ips, status, err := s.FwHandler.GetAllIPs()
 	if err != nil {
-		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
+		writeErrorResponse(w, status, err.Error())
 		return
 	}
-	writeOKResponse(w, ips)
+	writeOKResponse(w, status, ips)
 }
 
 // IPDelete for the ip Delete action
@@ -91,40 +65,18 @@ func (s *Server) IPDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	ipStr := vars["ip"]
 
-	ipAddr, _ := ip.New(ipStr)
-
-	ipExists, err := s.DB.CheckIPExists(ipStr)
+	status, err := s.FwHandler.DeleteIP(ipStr)
 	if err != nil {
-		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
+		writeErrorResponse(w, status, err.Error())
 		return
 	}
-	if !ipExists {
-		writeErrorResponse(w, http.StatusNotFound, "ip does not exist")
-		return
-	}
-
-	env := os.Getenv("env")
-	if env != "local" {
-		err = s.Firewall.DeleteRuleForIP(ipAddr)
-		if err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to delete ip, err : %v", err.Error()))
-			return
-		}
-	}
-
-	err = s.DB.DeleteIP(ipStr)
-	if err != nil {
-		// IP could not be deleted
-		writeErrorResponse(w, http.StatusNotFound, err.Error())
-		return
-	}
-	writeOKResponse(w, "successfully deleted rule for ip "+ipStr)
+	writeOKResponse(w, status, "successfully deleted rule for ip "+ipStr)
 }
 
 // Writes the response as a standard JSON response with StatusOK
-func writeOKResponse(w http.ResponseWriter, m any) {
+func writeOKResponse(w http.ResponseWriter, status int, m any) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(status)
 
 	if err := json.NewEncoder(w).Encode(&JSONResponse{Data: m}); err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
@@ -153,5 +105,6 @@ func populateIPFromHandler(_ http.ResponseWriter, r *http.Request, ip *ip.Addres
 	if err := json.Unmarshal(body, ip); err != nil {
 		return err
 	}
+	ip.Added = time.Now()
 	return nil
 }

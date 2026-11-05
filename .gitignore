@@ -1,5 +1,4 @@
 .env
-db/
 *.db
 build/
 auth/

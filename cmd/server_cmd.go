@@ -60,7 +60,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	firewall, err := loadFirewall(&config)
+	fw, err := loadFirewall(&config)
 	if err != nil {
 		return err
 	}
@@ -75,15 +75,20 @@ func runServer(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	fwHandler := firewall.NewHandler(firewall.HandlerOptions{
+		DB:       db,
+		Firewall: fw,
+		Logger:   log.Default(),
+	})
+
 	serverOpts := server.Options{
 		Addr:              config.Addr,
 		Port:              config.Port,
 		KeyFile:           config.KeyFile,
 		CertFile:          config.CertFile,
-		Firewall:          firewall,
-		DB:                db,
 		AuthorizedClients: clientCerts,
 		Insecure:          config.Insecure,
+		FwHandler:         fwHandler,
 		Logger:            log.Default(),
 	}
 
