@@ -13,7 +13,8 @@ func (s *Server) validateMiddleware(next http.Handler) http.Handler {
 		NewHandlerConfig().
 		SetFetchVerifier(s.fetchVerifier).
 		SetReqNotVerified(s.onVerifyFail).
-		SetLogger(s.Logger)
+		SetLogger(s.Logger).
+		SetMaxBodySize(1 << 20) // 1 MiB more than enough for the ka JSON message
 
 	return httpsign.WrapHandler(next, *config)
 }

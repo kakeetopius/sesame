@@ -4,7 +4,7 @@ A REST application (with a built-in client) that dynamically updates firewall ru
 
 Works with `firewalld` or `ufw`.
 
-sesame started as a fork of [firewalld-rest](https://github.com/prashantgupta24/firewalld-rest) and has since changed a bit specifically `ufw` support, certificate-based request signing instead of JWT, and automatic deletion of aged rules.
+sesame started as a fork of [firewalld-rest](https://github.com/prashantgupta24/firewalld-rest) and has since changed a bit specifically by adding `ufw` support, certificate-based request signing instead of JWT, automatic deletion of aged rules, a configurable server and a builtin client.
 
 ## Purpose
 
@@ -171,22 +171,6 @@ scp client.cert root@<server>:/etc/sesame/authorized_certs/pius.cert
 ```
 
 Use a different file name for each client.
-
-If you ever need to sign requests yourself (see [5.2](#52-signing-requests-yourself)), you can compute your `keyid` from the certificate:
-
-```
-openssl x509 -in client.cert -pubkey -noout \
-  | openssl pkey -pubin -outform DER \
-  | tail -c 32 \
-  | sha256sum | awk '{print $1}'
-```
-
-How this works:
-
-1. `openssl x509 ... -pubkey -noout` extracts the public key from the certificate in PEM form.
-2. `openssl pkey -pubin -outform DER` converts it to DER. For ed25519 this is a 44-byte structure whose last 32 bytes are the raw public key.
-3. `tail -c 32` keeps just those 32 raw key bytes.
-4. `sha256sum | awk '{print $1}'` hashes them and prints the hex digest, which is the `keyid`.
 
 ### 3.5 Configure the server
 
@@ -409,7 +393,7 @@ A few things to know:
 
 - **Replay window:** a signed request is only accepted for a short time after it was created (10 seconds by default). This limits replay, but a captured request could still be replayed inside that window. Serving over TLS (`insecure = false`) keeps requests from being captured on the network in the first place. See [Future work](#7-future-work).
 - **`--skip-verify`:** turns off verification of the server's TLS certificate in the client. Use it only for testing, or when you cannot trust the certificate any other way, because it removes protection against someone impersonating your server.
-- **`insecure = true`:** serves plain HTTP. Do not use it on a server reachable from the internet.
+- **`https = false`:** serves plain HTTP. Do not use it on a server reachable from the internet.
 - **Private keys:** keep `client.key` and `sesame.key` readable by you (or root) only (`chmod 600`).
 - **Revoking access:** delete a client's certificate from `authorized_certs_dir`.
 
