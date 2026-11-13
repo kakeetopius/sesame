@@ -13,7 +13,7 @@ import (
 // Index page
 // GET /
 func (s *Server) Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Welcome! You can reach sesame. You can allow an IP address using the `/ip' endpoint.\n")
+	writeOKResponse(w, http.StatusOK, "Welcome! You can reach the sesame server. You can allow an IP address using the '/ip' endpoint or use 'sesame client allow <ip>'")
 }
 
 // IPAdd for the Create action
@@ -49,7 +49,7 @@ func (s *Server) IPShow(w http.ResponseWriter, r *http.Request) {
 		writeErrorResponse(w, status, err.Error())
 		return
 	}
-	writeOKResponse(w, status, ip)
+	writeOKJSONResponse(w, status, ip)
 }
 
 // ShowAllIPs shows all IPs
@@ -62,7 +62,7 @@ func (s *Server) ShowAllIPs(w http.ResponseWriter, r *http.Request) {
 		writeErrorResponse(w, status, err.Error())
 		return
 	}
-	writeOKResponse(w, status, ips)
+	writeOKJSONResponse(w, status, ips)
 }
 
 // IPDelete for the ip Delete action
@@ -81,12 +81,20 @@ func (s *Server) IPDelete(w http.ResponseWriter, r *http.Request) {
 	writeOKResponse(w, status, "successfully deleted rule for ip "+ipStr)
 }
 
+// Writes the response as a simple string with StatusOK
+func writeOKResponse(w http.ResponseWriter, status int, msg string) {
+	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+	w.WriteHeader(status)
+
+	fmt.Fprintln(w, msg)
+}
+
 // Writes the response as a standard JSON response with StatusOK
-func writeOKResponse(w http.ResponseWriter, status int, m any) {
+func writeOKJSONResponse(w http.ResponseWriter, status int, m any) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(status)
 
-	if err := json.NewEncoder(w).Encode(&JSONResponse{Data: m}); err != nil {
+	if err := json.NewEncoder(w).Encode(m); err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
 	}
 }

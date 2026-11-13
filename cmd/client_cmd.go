@@ -15,10 +15,12 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/kakeetopius/sesame/internal/config"
 	"github.com/kakeetopius/sesame/internal/ip"
 	"github.com/kakeetopius/sesame/server"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/yaronf/httpsign"
@@ -39,8 +41,10 @@ func ClientCommand() *cobra.Command {
 	clientCmd.PersistentFlags().Bool("skip-verify", false, "Skip verifying the server's certificate if connecting with TLS.")
 
 	clientCmd.AddCommand(
+		ClientHelloCommand(),
 		ClientAllowCommand(),
 		ClientDenyCommand(),
+		ClientGetCommand(),
 	)
 
 	return clientCmd
@@ -70,6 +74,30 @@ func ClientDenyCommand() *cobra.Command {
 	return denyCmd
 }
 
+func ClientGetCommand() *cobra.Command {
+	denyCmd := &cobra.Command{
+		Use:          "get [ip]",
+		Short:        "Get details about IPs that have been allowed SSH access on the server",
+		SilenceUsage: true,
+		Args:         cobra.MaximumNArgs(1),
+		RunE:         runClientGet,
+	}
+
+	return denyCmd
+}
+
+func ClientHelloCommand() *cobra.Command {
+	helloCmd := &cobra.Command{
+		Use:          "hello",
+		Short:        "Check if you can communicate with the configured sesame server.",
+		SilenceUsage: true,
+		Args:         cobra.NoArgs,
+		RunE:         runClientHello,
+	}
+
+	return helloCmd
+}
+
 func clientConfigSetupFunc(cmd *cobra.Command) config.ConfigSetupFunc {
 	return func(v *viper.Viper) {
 		err := v.BindPFlag("address", cmd.Flags().Lookup("addr"))
@@ -80,60 +108,33 @@ func clientConfigSetupFunc(cmd *cobra.Command) config.ConfigSetupFunc {
 		cobra.CheckErr(err)
 		err = v.BindPFlag("private_key_file", cmd.Flags().Lookup("key-file"))
 		cobra.CheckErr(err)
+		err = v.BindPFlag("skip_verify", cmd.Flags().Lookup("skip-verify"))
+		cobra.CheckErr(err)
 	}
+}
+
+func getClientConfig(cmd *cobra.Command) (config.ClientConfig, error) {
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return config.ClientConfig{}, err
+	}
+
+	return config.LoadClientConfig(configPath, clientConfigSetupFunc(cmd))
 }
 
 func runClientAllow(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("no ip given")
 	}
-
-	skipVerify, err := cmd.Flags().GetBool("skip-verify")
+	config, err := getClientConfig(cmd)
 	if err != nil {
 		return err
 	}
 
-	configPath, err := cmd.Flags().GetString("config")
+	client, err := getSesameClient(&config, "POST")
 	if err != nil {
 		return err
 	}
-
-	clientConfig, err := config.LoadClientConfig(configPath, clientConfigSetupFunc(cmd))
-	if err != nil {
-		return err
-	}
-
-	key, keyID, err := loadClientKeyAndID(&clientConfig)
-	if err != nil {
-		return err
-	}
-
-	signer, err := httpsign.NewEd25519Signer(
-		key,
-		httpsign.
-			NewSignConfig().
-			SetKeyID(keyID),
-		*server.MustBeSignedFields("POST"),
-	)
-	if err != nil {
-		return err
-	}
-
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: skipVerify,
-			},
-		},
-	}
-
-	client := httpsign.NewClient(
-		*httpClient,
-		httpsign.
-			NewClientConfig().
-			SetSignatureName(server.SignatureName()).
-			SetSigner(signer),
-	)
 
 	ip, err := ip.New(args[0])
 	if err != nil {
@@ -145,11 +146,7 @@ func runClientAllow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("json error: %w", err)
 	}
 
-	url, err := getServerURL(clientConfig.Address, clientConfig.Port, "/m1/ip")
-	if err != nil {
-		return err
-	}
-	request, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	request, err := http.NewRequest("POST", client.ServerURL+"/ip", bytes.NewBuffer(body))
 	if err != nil {
 		return err
 	}
@@ -169,64 +166,22 @@ func runClientDeny(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("no ip given")
 	}
-
-	configPath, err := cmd.Flags().GetString("config")
+	config, err := getClientConfig(cmd)
 	if err != nil {
 		return err
 	}
 
-	skipVerify, err := cmd.Flags().GetBool("skip-verify")
+	client, err := getSesameClient(&config, "DELETE")
 	if err != nil {
 		return err
 	}
-
-	clientConfig, err := config.LoadClientConfig(configPath, clientConfigSetupFunc(cmd))
-	if err != nil {
-		return err
-	}
-
-	key, keyID, err := loadClientKeyAndID(&clientConfig)
-	if err != nil {
-		return err
-	}
-
-	signer, err := httpsign.NewEd25519Signer(
-		key,
-		httpsign.
-			NewSignConfig().
-			SetKeyID(keyID),
-		*server.MustBeSignedFields("DELETE"),
-	)
-	if err != nil {
-		return err
-	}
-
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: skipVerify,
-			},
-		},
-	}
-
-	client := httpsign.NewClient(
-		*httpClient,
-		httpsign.
-			NewClientConfig().
-			SetSignatureName(server.SignatureName()).
-			SetSigner(signer),
-	)
 
 	ip, err := ip.New(args[0])
 	if err != nil {
 		return err
 	}
 
-	url, err := getServerURL(clientConfig.Address, clientConfig.Port, "/m1/ip/"+ip.IP)
-	if err != nil {
-		return err
-	}
-	request, err := http.NewRequest("DELETE", url, nil)
+	request, err := http.NewRequest("DELETE", client.ServerURL+"/ip/"+ip.IP, nil)
 	if err != nil {
 		return err
 	}
@@ -240,6 +195,161 @@ func runClientDeny(cmd *cobra.Command, args []string) error {
 	io.Copy(os.Stdout, resp.Body)
 
 	return nil
+}
+
+func runClientGet(cmd *cobra.Command, args []string) error {
+	config, err := getClientConfig(cmd)
+	if err != nil {
+		return err
+	}
+
+	client, err := getSesameClient(&config, "GET")
+	if err != nil {
+		return err
+	}
+
+	serverURL := client.ServerURL + "/ip"
+	var singleIPExpected bool
+	if len(args) > 0 {
+		addr, ierr := ip.New(args[0])
+		if ierr != nil {
+			return ierr
+		}
+		singleIPExpected = true
+		serverURL += "/" + addr.IP
+	}
+
+	request, err := http.NewRequest("GET", serverURL, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	returnedJSON, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println(string(returnedJSON))
+		return nil
+	}
+
+	ips := []ip.Address{}
+	if singleIPExpected {
+		addr := ip.Address{}
+		err = json.Unmarshal(returnedJSON, &addr)
+		if err != nil {
+			return err
+		}
+		ips = append(ips, addr)
+	} else {
+		err = json.Unmarshal(returnedJSON, &ips)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(ips) == 0 {
+		fmt.Println("No ips have been allowed SSH access to the server.")
+		return nil
+	}
+
+	tableData := pterm.TableData{}
+	tableData = append(tableData, []string{"IP Address", "Added"})
+	for _, addr := range ips {
+		tableData = append(tableData, []string{addr.IP, addr.Added.Truncate(time.Second).String()})
+	}
+
+	pterm.DefaultTable.
+		WithHasHeader(true).
+		WithHeaderRowSeparator("-").
+		WithBoxed(true).
+		WithData(tableData).
+		Render()
+
+	return nil
+}
+
+func runClientHello(cmd *cobra.Command, _ []string) error {
+	config, err := getClientConfig(cmd)
+	if err != nil {
+		return err
+	}
+
+	client, err := getSesameClient(&config, "GET")
+	if err != nil {
+		return err
+	}
+
+	request, err := http.NewRequest("GET", client.ServerURL+"/", nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	fmt.Println()
+	io.Copy(os.Stdout, resp.Body)
+
+	return nil
+}
+
+type sesameClient struct {
+	*httpsign.Client
+	ServerURL string
+}
+
+func getSesameClient(config *config.ClientConfig, method string) (sesameClient, error) {
+	key, keyID, err := loadClientKeyAndID(config)
+	if err != nil {
+		return sesameClient{}, err
+	}
+
+	signer, err := httpsign.NewEd25519Signer(
+		key,
+		httpsign.
+			NewSignConfig().
+			SetKeyID(keyID),
+		*server.MustBeSignedFields(method),
+	)
+	if err != nil {
+		return sesameClient{}, err
+	}
+
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: config.SkipVerify,
+			},
+		},
+	}
+
+	client := httpsign.NewClient(
+		*httpClient,
+		httpsign.
+			NewClientConfig().
+			SetSignatureName(server.SignatureName()).
+			SetSigner(signer),
+	)
+
+	url, err := getServerURL(config.Address, config.Port, "/m1")
+	if err != nil {
+		return sesameClient{}, err
+	}
+
+	return sesameClient{
+		Client:    client,
+		ServerURL: url,
+	}, nil
 }
 
 // path must start with a '/'

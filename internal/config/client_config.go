@@ -14,6 +14,7 @@ type ClientConfig struct {
 	Port        int    `mapstructure:"port"`
 	CertFile    string `mapstructure:"cert_file"`
 	PrivKeyFile string `mapstructure:"private_key_file"`
+	SkipVerify  bool   `mapstructure:"skip_verify"`
 }
 
 func LoadClientConfig(path string, setUpFuncs ...ConfigSetupFunc) (ClientConfig, error) {

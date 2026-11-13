@@ -176,6 +176,8 @@ Use a different file name for each client.
 
 sesame uses [Viper](https://github.com/spf13/viper), so the config file can be any format Viper supports (TOML, YAML, JSON, ...). Pass it with `--config`. The examples here use TOML.
 
+If `--config` is not given, the server looks for a file named `sesame.toml` (or `sesame.toml`, `sesame.json`, ...) in `/etc/sesame`.
+
 `/etc/sesame/config.toml`:
 
 ```toml
@@ -308,7 +310,17 @@ Then, from a **new terminal**, try SSH to the server. It should be refused. Next
 
 ## 4. Using the client
 
-Create a client config on your machine, for example `client.toml`:
+The client config can also be in any format Viper supports (TOML, YAML, JSON, ...). Pass it with `--config`. The examples here use TOML.
+
+### 4.1 Default config locations
+
+If `--config` is not given, the client looks for a file named `sesame.toml` (or `sesame.yaml`, `sesame.json`, ...) in your user config directory:
+
+- Linux: ~/.config/sesame/sesame.toml
+- macOS: ~/Library/Application Support/sesame/sesame.toml
+- Windows: %AppData%\sesame\sesame.toml
+
+Create a client config, for example `~/.config/sesame/sesame.toml` (or any other path which can then be specified using `--config`):
 
 ```toml
 address = "203.0.113.10"      # the server's IP or hostname
@@ -330,12 +342,18 @@ All four values are required.
 | `--key-file`    | Path to your client private key                                 |
 | `--skip-verify` | Do not verify the server's certificate when connecting over TLS |
 
+**Test the server** (Optional) - checks whether connectivity and authentication is okay:
+
+```
+sesame client hello
+```
+
 **Allow your IP**
 
 First find your public IP (for example with `curl -4 ifconfig.me`), then:
 
 ```
-sesame client --config client.toml allow 198.51.100.25
+sesame client allow 198.51.100.25
 ```
 
 You can now SSH to the server from that IP.
@@ -343,7 +361,19 @@ You can now SSH to the server from that IP.
 **Deny your IP** when you are done:
 
 ```
-sesame client --config client.toml deny 198.51.100.25
+sesame client deny 198.51.100.25
+```
+
+**Check your IP** - for one IP:
+
+```
+sesame client get 198.51.100.25
+```
+
+or for all IPs the server knows about:
+
+```
+sesame client get
 ```
 
 Everything can also be given on the command line without a config file:
@@ -360,13 +390,13 @@ You do not have to use `sesame client`. Any program that can send correctly sign
 
 ### 5.1 Routes
 
-| Purpose                            | Method   | Path          | Body                    | Client command        |
-| ---------------------------------- | -------- | ------------- | ----------------------- | --------------------- |
-| Index page                         | `GET`    | `/m1`         |                         | not yet               |
-| Show all IPs present               | `GET`    | `/m1/ip`      |                         | not yet               |
-| Add new IP (allow SSH)             | `POST`   | `/m1/ip`      | `{"ip": "203.0.113.7"}` | `sesame client allow` |
-| Show if a particular IP is present | `GET`    | `/m1/ip/{ip}` |                         | not yet               |
-| Delete IP (deny SSH)               | `DELETE` | `/m1/ip/{ip}` |                         | `sesame client deny`  |
+| Purpose                                              | Method   | Path          | Body                    | Client command           |
+| ---------------------------------------------------- | -------- | ------------- | ----------------------- | ------------------------ |
+| Index page (testing connectivity and authentication) | `GET`    | `/m1`         |                         | `sesame client hello`    |
+| Show all IPs present                                 | `GET`    | `/m1/ip`      |                         | `sesame client get`      |
+| Add new IP (allow SSH)                               | `POST`   | `/m1/ip`      | `{"ip": "203.0.113.7"}` | `sesame client allow`    |
+| Show if a particular IP is present                   | `GET`    | `/m1/ip/{ip}` |                         | `sesame client get <ip>` |
+| Delete IP (deny SSH)                                 | `DELETE` | `/m1/ip/{ip}` |                         | `sesame client deny`     |
 
 ### 5.2 Signing requests yourself
 

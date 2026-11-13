@@ -78,5 +78,5 @@ func (s *Server) onVerifyFail(w http.ResponseWriter, r *http.Request, l *log.Log
 	if l != nil {
 		l.Printf("signature verification failed from %s: %v\n", r.RemoteAddr, err)
 	}
-	http.Error(w, "wrong magic word (signature verification failed)", http.StatusUnauthorized)
+	http.Error(w, "Wrong magic word (signature verification failed). Access to sesame denied!", http.StatusUnauthorized)
 }

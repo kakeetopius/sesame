@@ -2,9 +2,8 @@ package server
 
 // JSONResponse defines meta and interface struct
 type JSONResponse struct {
-	// Reserved field to add some meta information to the API response
-	Meta any `json:"meta"`
-	Data any `json:"data"`
+	Status int `json:"status"`
+	Data   any `json:"data"`
 }
 
 // JSONErrorResponse defines error struct
